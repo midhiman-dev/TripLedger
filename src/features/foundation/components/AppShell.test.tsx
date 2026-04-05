@@ -70,9 +70,11 @@ describe("AppShell", () => {
 
     fireEvent(window, new Event("offline"));
 
-    expect(
-      screen.getByText(/you are offline\. local changes will sync when signal returns\./i),
-    ).toBeInTheDocument();
+    const offlineBanner = screen.getByRole("status");
+    expect(offlineBanner).toHaveTextContent(
+      /you are offline\. local changes will sync when signal returns\./i,
+    );
+    expect(screen.getAllByText(/^offline$/i)).toHaveLength(2);
   });
 
   it("shows queued local changes as pending", async () => {
@@ -116,5 +118,21 @@ describe("AppShell", () => {
     expect(
       screen.queryByText(/you are offline\. local changes will sync when signal returns\./i),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps pending sync messaging in the content area instead of the offline banner", async () => {
+    readPersistedSyncStatusMock.mockResolvedValue({
+      mode: "pending",
+      pendingCount: 2,
+      conflictCount: 0,
+      lastSyncedAt: "2026-04-05T09:45:00.000Z",
+    });
+
+    await renderShell();
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/2 changes are queued for sync\. your local ledger is already saved\./i),
+    ).toBeInTheDocument();
   });
 });

@@ -41,6 +41,19 @@ function StatusPill({
   );
 }
 
+function OfflineBanner({ message }: { message: string }) {
+  return (
+    <div
+      aria-live="polite"
+      className="sticky top-0 z-50 -mx-6 flex items-center justify-center gap-3 bg-secondary-container/90 px-6 py-3 text-center text-sm font-semibold text-on-secondary-container backdrop-blur-md"
+      role="status"
+    >
+      <span className="material-symbols-outlined text-lg">cloud_off</span>
+      <p>{message}</p>
+    </div>
+  );
+}
+
 export function AppShell() {
   const {
     appVersion,
@@ -124,8 +137,12 @@ export function AppShell() {
 
   return (
     <main className="min-h-dvh bg-surface px-6 pb-8 pt-6 text-on-surface">
+      {syncStatus.tone === "offline" && syncStatus.banner ? (
+        <OfflineBanner message={syncStatus.banner} />
+      ) : null}
+
       <div className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-md flex-col gap-6">
-        {syncStatus.banner ? (
+        {syncStatus.banner && syncStatus.tone !== "offline" ? (
           <div
             className={`rounded-2xl px-4 py-3 text-sm font-medium shadow-ambient ${
               syncStatus.tone === "conflict"
