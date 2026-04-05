@@ -3,3 +3,7 @@ docs/Development/TripLedger_User_Story_Prompts.md
 docs/Development/Backlog/TripLedger_Jira_Workstream_Task_Subtask_Aligned_v1.0.csv
 Skill.md
 docs/Requirements/TripLedger-Context.md
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo

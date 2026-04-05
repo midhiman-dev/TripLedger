@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-labelledby="title">
+  <title>TripLedger icon</title>
+  <rect width="192" height="192" rx="48" fill="#1a1c54"/>
+  <path d="M40 58c0-6.627 5.373-12 12-12h88c6.627 0 12 5.373 12 12v76c0 6.627-5.373 12-12 12H52c-6.627 0-12-5.373-12-12V58Z" fill="#f4fafd"/>
+  <path d="M58 74h76" stroke="#c7c5d1" stroke-width="8" stroke-linecap="round"/>
+  <path d="M58 96h40" stroke="#30336b" stroke-width="10" stroke-linecap="round"/>
+  <path d="M58 120h28" stroke="#fea520" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="128" cy="116" r="22" fill="#fea520"/>
+  <path d="M128 104v24M116 116h24" stroke="#694000" stroke-width="8" stroke-linecap="round"/>
+</svg>

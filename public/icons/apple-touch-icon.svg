@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-labelledby="title">
+  <title>TripLedger apple touch icon</title>
+  <rect width="180" height="180" rx="44" fill="#1a1c54"/>
+  <path d="M39 56c0-6.627 5.373-12 12-12h78c6.627 0 12 5.373 12 12v68c0 6.627-5.373 12-12 12H51c-6.627 0-12-5.373-12-12V56Z" fill="#f4fafd"/>
+  <path d="M55 71h70" stroke="#c7c5d1" stroke-width="7" stroke-linecap="round"/>
+  <path d="M55 91h36" stroke="#30336b" stroke-width="9" stroke-linecap="round"/>
+  <path d="M55 111h26" stroke="#fea520" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="119" cy="108" r="20" fill="#fea520"/>
+  <path d="M119 97v22M108 108h22" stroke="#694000" stroke-width="7" stroke-linecap="round"/>
+</svg>
