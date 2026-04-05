@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:local": "vite --host=localhost --port=4173 --strictPort",
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "test:watch": "vitest"
