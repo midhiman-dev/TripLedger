@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TripLedger Product Backlog v1.0</title>
+  <style>
+    :root{
+      --bg:#f5f7fb;
+      --card:#ffffff;
+      --ink:#162033;
+      --muted:#5d6678;
+      --line:#d9e1ee;
+      --brand:#2563eb;
+      --brand2:#0f172a;
+      --must:#b91c1c;
+      --should:#b45309;
+      --could:#166534;
+      --epic:#eef4ff;
+      --chip:#f3f6fc;
+      --shadow:0 10px 28px rgba(15,23,42,.06);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter,"Segoe UI",Roboto,Arial,sans-serif;
+      color:var(--ink);
+      background:linear-gradient(180deg,#eef4ff 0,#f7f9fc 180px,var(--bg) 181px);
+      line-height:1.5;
+    }
+    .wrap{max-width:1180px;margin:0 auto;padding:32px 24px 70px}
+    .hero{
+      background:linear-gradient(135deg,#0f172a 0,#1d4ed8 100%);
+      color:#fff;
+      border-radius:24px;
+      padding:34px 38px;
+      box-shadow:0 18px 60px rgba(15,23,42,.22);
+    }
+    .eyebrow{
+      display:inline-block;
+      padding:6px 10px;
+      border:1px solid rgba(255,255,255,.22);
+      border-radius:999px;
+      font-size:12px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      opacity:.95;
+      margin-bottom:12px;
+    }
+    h1,h2,h3,h4{margin:0 0 12px}
+    h1{font-size:38px;line-height:1.12}
+    h2{
+      font-size:28px;
+      margin-top:42px;
+      padding-top:10px;
+      border-top:1px solid var(--line);
+    }
+    h3{font-size:20px;margin-top:4px}
+    h4{font-size:16px;margin-top:10px}
+    p{margin:10px 0}
+    .sub{font-size:18px;max-width:920px;opacity:.96}
+    .meta{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+      margin-top:22px;
+    }
+    .meta .item{
+      padding:14px 16px;
+      border:1px solid rgba(255,255,255,.16);
+      border-radius:16px;
+      background:rgba(255,255,255,.10);
+    }
+    .label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;opacity:.8}
+    .value{font-size:15px;font-weight:700;margin-top:4px}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+    .card,.toc,.epic{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:18px;
+      box-shadow:var(--shadow);
+    }
+    .card,.toc{padding:20px 22px;margin-top:18px}
+    .toc ol{columns:2;margin:10px 0 0 20px;padding:0}
+    .toc li{margin:8px 0;color:var(--muted)}
+    .toc a{color:var(--brand);text-decoration:none}
+    .pill{
+      display:inline-block;
+      padding:5px 10px;
+      border-radius:999px;
+      background:var(--chip);
+      font-size:12px;
+      font-weight:700;
+      margin-right:8px;
+      margin-bottom:8px;
+    }
+    .must{background:#fee2e2;color:#991b1b}
+    .should{background:#ffedd5;color:#9a3412}
+    .could{background:#dcfce7;color:#166534}
+    .enabler{background:#ede9fe;color:#5b21b6}
+    .user{background:#dbeafe;color:#1d4ed8}
+    .summary-box{
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px 16px;
+      background:#fff;
+    }
+    .summary-box .num{
+      font-size:28px;font-weight:800;line-height:1.1;margin-bottom:6px;
+    }
+    .summary-box .txt{color:var(--muted);font-size:13px}
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin:12px 0 0;
+      font-size:14px;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:14px;
+      overflow:hidden;
+    }
+    th,td{
+      padding:12px 12px;
+      border-bottom:1px solid var(--line);
+      text-align:left;
+      vertical-align:top;
+    }
+    th{
+      background:#f7faff;
+      font-size:12px;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+      color:#44516a;
+    }
+    tr:last-child td{border-bottom:none}
+    .story-id{font-weight:800;color:#1d4ed8;white-space:nowrap}
+    .epic{
+      margin-top:22px;
+      overflow:hidden;
+    }
+    .epic-head{
+      background:linear-gradient(180deg,#f8fbff 0,#eef4ff 100%);
+      padding:18px 22px 16px;
+      border-bottom:1px solid var(--line);
+    }
+    .epic-meta{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-top:8px;
+    }
+    .epic-body{padding:18px 22px 22px}
+    .goal{
+      font-size:15px;
+      color:var(--muted);
+      margin-top:6px;
+    }
+    .note{
+      background:#fffdf5;
+      border:1px solid #fde68a;
+      border-radius:16px;
+      padding:14px 16px;
+      margin-top:16px;
+    }
+    ul{margin:8px 0 8px 22px}
+    li{margin:6px 0}
+    .seq{
+      display:grid;
+      grid-template-columns:repeat(6,1fr);
+      gap:12px;
+      margin-top:14px;
+    }
+    .seq .step{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:12px 12px;
+      text-align:left;
+    }
+    .seq .step .n{
+      font-size:12px;
+      font-weight:800;
+      color:var(--brand);
+      text-transform:uppercase;
+      letter-spacing:.08em;
+    }
+    .seq .step .t{font-weight:700;margin-top:6px}
+    .seq .step .d{font-size:13px;color:var(--muted);margin-top:4px}
+    .footer{
+      margin-top:44px;
+      padding-top:18px;
+      border-top:1px solid var(--line);
+      color:var(--muted);
+      font-size:13px;
+    }
+    @media (max-width:980px){
+      .meta,.grid-2,.grid-3,.grid-4,.seq{grid-template-columns:1fr}
+      .toc ol{columns:1}
+      h1{font-size:30px}
+      .wrap{padding:18px 14px 50px}
+      .hero{padding:26px 22px}
+    }
+    @media print{
+      body{background:#fff}
+      .hero,.card,.toc,.epic,.summary-box{box-shadow:none}
+      a{color:inherit;text-decoration:none}
+      .wrap{max-width:none;padding:0}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Human-Readable Product Backlog</div>
+      <h1>TripLedger<br/>Epics & User Stories Backlog</h1>
+      <div class="sub">
+        A product-facing backlog derived from the PRD and SRS, organized into clear epics, user stories, platform enablers, suggested priorities, and implementation sequencing for the MVP.
+      </div>
+      <div class="meta">
+        <div class="item"><div class="label">Document</div><div class="value">Backlog v1.0</div></div>
+        <div class="item"><div class="label">Based On</div><div class="value">TripLedger PRD + SRS</div></div>
+        <div class="item"><div class="label">Scope</div><div class="value">MVP / Phase 1 + Deferred Items</div></div>
+        <div class="item"><div class="label">Prepared On</div><div class="value">05 April 2026</div></div>
+      </div>
+    </section>
+
+    <section class="toc">
+      <h3>Contents</h3>
+      <ol>
+        <li><a href="#overview">Backlog Overview</a></li>
+        <li><a href="#epic1">Epic 1 — Product Foundation & PWA Shell</a></li>
+        <li><a href="#epic2">Epic 2 — Trip Setup & Group Joining</a></li>
+        <li><a href="#epic3">Epic 3 — Expense Logging & Record Management</a></li>
+        <li><a href="#epic4">Epic 4 — Budget Dashboard, History & Settlement</a></li>
+        <li><a href="#epic5">Epic 5 — Sync, Offline Queue & Conflict Resolution</a></li>
+        <li><a href="#epic6">Epic 6 — Security, Data & Release Readiness</a></li>
+        <li><a href="#deferred">Deferred Backlog</a></li>
+        <li><a href="#sequence">Suggested Delivery Sequence</a></li>
+      </ol>
+    </section>
+
+    <section id="overview">
+      <h2>1. Backlog Overview</h2>
+
+      <div class="grid-4">
+        <div class="summary-box"><div class="num">6</div><div>Core MVP epics</div><div class="txt">balanced across user value and technical risk</div></div>
+        <div class="summary-box"><div class="num">30</div><div>MVP backlog items</div><div class="txt">mix of user stories and engineering enablers</div></div>
+        <div class="summary-box"><div class="num">20</div><div>Must-have items</div><div class="txt">required for MVP confidence and beta quality</div></div>
+        <div class="summary-box"><div class="num">8</div><div>Deferred items</div><div class="txt">captured for later phases to avoid scope creep</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>How to read this backlog</h3>
+          <p>This backlog is intentionally written in human language so product, design, engineering, and QA can all use the same artifact.</p>
+          <p>
+            <span class="pill must">Must Have</span>
+            <span class="pill should">Should Have</span>
+            <span class="pill could">Could Have</span>
+            <span class="pill user">User Story</span>
+            <span class="pill enabler">Enabler</span>
+          </p>
+          <ul>
+            <li><strong>User Story</strong> items describe visible product behavior.</li>
+            <li><strong>Enabler</strong> items capture technical work required to make the user promise real.</li>
+            <li><strong>Acceptance Snapshot</strong> gives the essence of “done” without becoming a full test script.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>MVP outcome this backlog is driving toward</h3>
+          <p>A road-trip group should be able to create a trip, set budgets, log expenses without signal, and regain a fully reconciled shared ledger when connectivity returns.</p>
+          <ul>
+            <li>Offline is the default operating mode.</li>
+            <li>Expense logging must feel faster than typical online apps.</li>
+            <li>Data loss is unacceptable; conflicts must be surfaced, not hidden.</li>
+            <li>PWA installability must remove app-store friction.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="epic1">
+      <h2>2. Epic 1 — Product Foundation & PWA Shell</h2>
+      <article class="epic">
+        <div class="epic-head">
+          <h3>Goal</h3>
+          <div class="goal">Give TripLedger a reliable offline-first shell that loads from cache, behaves like an app, and exposes the right system signals for installability, connectivity, analytics consent, and resilience.</div>
+          <div class="epic-meta">
+            <span class="pill must">Epic Priority: Must Have</span>
+            <span class="pill enabler">Mostly Enabler Work</span>
+            <span class="pill">Outcome: App can run offline</span>
+          </div>
+        </div>
+        <div class="epic-body">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Type</th><th>Backlog Item</th><th>Priority</th><th>Size</th><th>Acceptance Snapshot</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="story-id">PB-001</td><td>Enabler</td><td>Set up the TripLedger web shell as an installable PWA with manifest, standalone launch mode, icons, and home-screen readiness.</td><td>Must</td><td>M</td><td>The app passes installability checks and launches without browser chrome after install.</td></tr>
+              <tr><td class="story-id">PB-002</td><td>Enabler</td><td>Register a service worker that precaches the full app shell and supports versioned updates on new deployments.</td><td>Must</td><td>M</td><td>The shell loads offline from cache and silently refreshes when a new version is released.</td></tr>
+              <tr><td class="story-id">PB-003</td><td>User Story</td><td>As any traveller, I want the app to clearly tell me whether I am synced, pending, offline, or in conflict, so that I always know whether my ledger is safe.</td><td>Must</td><td>S</td><td>A global sync chip is visible on major screens and updates quickly when connectivity changes.</td></tr>
+              <tr><td class="story-id">PB-004</td><td>User Story</td><td>As any traveller, I want to see a non-blocking offline banner when signal drops, so that I trust the app will keep working and sync later.</td><td>Must</td><td>S</td><td>Banner appears within 1 second of connectivity loss and does not interrupt logging.</td></tr>
+              <tr><td class="story-id">PB-005</td><td>Enabler</td><td>Implement consent-gated analytics and error monitoring so usage events are measured without violating the product’s privacy promise.</td><td>Should</td><td>M</td><td>Analytics fire only after user consent; error monitoring remains active for reliability events.</td></tr>
+              <tr><td class="story-id">PB-006</td><td>Enabler</td><td>Create release-quality checks for Lighthouse PWA score, offline launch, and zero-console-errors on the critical user flows.</td><td>Must</td><td>M</td><td>Build pipeline or release checklist rejects builds that fail the agreed quality gates.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="epic2">
+      <h2>3. Epic 2 — Trip Setup & Group Joining</h2>
+      <article class="epic">
+        <div class="epic-head">
+          <h3>Goal</h3>
+          <div class="goal">Let a trip organiser quickly create a trip, define budgets, and bring the group into the same ledger with minimal friction and no account-heavy onboarding.</div>
+          <div class="epic-meta">
+            <span class="pill must">Epic Priority: Must Have</span>
+            <span class="pill user">Primary Persona: Riya</span>
+            <span class="pill">Outcome: Shared trip exists</span>
+          </div>
+        </div>
+        <div class="epic-body">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Type</th><th>Backlog Item</th><th>Priority</th><th>Size</th><th>Acceptance Snapshot</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="story-id">PB-101</td><td>User Story</td><td>As a trip organiser, I want to create a trip with a name, dates, and total budget, so that the group has a financial starting point before travel begins.</td><td>Must</td><td>S</td><td>Trip saves locally within milliseconds even without a network connection.</td></tr>
+              <tr><td class="story-id">PB-102</td><td>User Story</td><td>As a trip organiser, I want default categories with editable budget amounts, so that I can set clear spending expectations for fuel, food, stay, tolls, and more.</td><td>Must</td><td>S</td><td>Default categories are seeded and can be adjusted; up to 8 categories are supported.</td></tr>
+              <tr><td class="story-id">PB-103</td><td>User Story</td><td>As a trip organiser, I want a short trip code I can share through WhatsApp or any other app, so that others can join without email or passwords.</td><td>Must</td><td>S</td><td>A unique trip code is generated and can be copied or sent via native share sheet.</td></tr>
+              <tr><td class="story-id">PB-104</td><td>User Story</td><td>As any traveller, I want to join a trip using the shared code even if I am offline, so that I am not blocked by poor connectivity after departure.</td><td>Must</td><td>M</td><td>The join action queues locally and completes on next sync instead of failing.</td></tr>
+              <tr><td class="story-id">PB-105</td><td>Enabler</td><td>Build first-sync trip hydration so a newly joined device receives the full trip snapshot and starts from a consistent local state.</td><td>Must</td><td>M</td><td>A successful join populates trips, categories, expenses, and membership state locally.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="epic3">
+      <h2>4. Epic 3 — Expense Logging & Record Management</h2>
+      <article class="epic">
+        <div class="epic-head">
+          <h3>Goal</h3>
+          <div class="goal">Make expense logging so quick and dependable that travellers will actually use it in the moment, even on the roadside, in low light, or with no signal.</div>
+          <div class="epic-meta">
+            <span class="pill must">Epic Priority: Must Have</span>
+            <span class="pill user">Primary Persona: Arjun</span>
+            <span class="pill">Outcome: Expense captured instantly</span>
+          </div>
+        </div>
+        <div class="epic-body">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Type</th><th>Backlog Item</th><th>Priority</th><th>Size</th><th>Acceptance Snapshot</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="story-id">PB-201</td><td>User Story</td><td>As a co-traveller, I want to log an expense in three taps or fewer, so that I do not lose the moment or rely on memory later.</td><td>Must</td><td>M</td><td>Primary path is category → amount → add, with no required secondary fields.</td></tr>
+              <tr><td class="story-id">PB-202</td><td>User Story</td><td>As a co-traveller, I want my expense to appear immediately after I add it, so that I trust it is recorded even before sync happens.</td><td>Must</td><td>M</td><td>The new expense is visible within 300 ms and the pending counter increments immediately.</td></tr>
+              <tr><td class="story-id">PB-203</td><td>Enabler</td><td>Generate client-side UUIDs and HLC timestamps for every created or edited expense to preserve offline integrity and sync ordering.</td><td>Must</td><td>M</td><td>Every record is locally addressable and merge-ready before any server call occurs.</td></tr>
+              <tr><td class="story-id">PB-204</td><td>User Story</td><td>As any traveller, I want optional note, location, and paid-by fields behind a “more details” affordance, so that quick logging stays fast but context is still available when needed.</td><td>Should</td><td>S</td><td>Optional fields never block the 3-tap path.</td></tr>
+              <tr><td class="story-id">PB-205</td><td>User Story</td><td>As any traveller, I want to edit an expense when I make a mistake, so that the shared ledger stays clean and useful.</td><td>Should</td><td>M</td><td>Edits reopen with prior values and update record state back to pending for re-sync.</td></tr>
+              <tr><td class="story-id">PB-206</td><td>User Story</td><td>As any traveller, I want to delete a wrongly logged expense and undo it if needed, so that accidental taps do not pollute the ledger.</td><td>Should</td><td>M</td><td>Delete is soft, the entry disappears immediately, and Undo remains available briefly.</td></tr>
+              <tr><td class="story-id">PB-207</td><td>User Story</td><td>As any traveller, I want to see who or which device logged each expense, so that disputes can be resolved without guessing.</td><td>Should</td><td>S</td><td>History entries show source identity in a simple, readable way.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="epic4">
+      <h2>5. Epic 4 — Budget Dashboard, History & Settlement</h2>
+      <article class="epic">
+        <div class="epic-head">
+          <h3>Goal</h3>
+          <div class="goal">Help the group understand whether they are overspending, where the money is going, and how to settle fairly without creating a spreadsheet.</div>
+          <div class="epic-meta">
+            <span class="pill must">Epic Priority: Must Have / Should Have mix</span>
+            <span class="pill user">Primary Persona: Priya</span>
+            <span class="pill">Outcome: Budget is understandable at a glance</span>
+          </div>
+        </div>
+        <div class="epic-body">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Type</th><th>Backlog Item</th><th>Priority</th><th>Size</th><th>Acceptance Snapshot</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="story-id">PB-301</td><td>User Story</td><td>As a budget watcher, I want to see total budget, total spent, remaining amount, and overall trip progress on the dashboard, so that I know the group’s financial position at a glance.</td><td>Must</td><td>S</td><td>Dashboard totals compute locally and stay available offline.</td></tr>
+              <tr><td class="story-id">PB-302</td><td>User Story</td><td>As a budget watcher, I want each category to show spent versus allocated budget with green/amber/red health cues, so that I can spot overspending without mental math.</td><td>Must</td><td>S</td><td>Threshold colors update immediately after a new expense is logged.</td></tr>
+              <tr><td class="story-id">PB-303</td><td>User Story</td><td>As any traveller, I want a full expense history in reverse chronological order, so that I can review what happened and when.</td><td>Should</td><td>M</td><td>History shows amount, category, time, note/location if present, source identity, and sync state.</td></tr>
+              <tr><td class="story-id">PB-304</td><td>User Story</td><td>As a trip organiser, I want a settlement summary that says who owes whom, so that we can settle fairly at the end of the trip.</td><td>Should</td><td>M</td><td>The app produces a minimal payment list entirely client-side without calling the server.</td></tr>
+              <tr><td class="story-id">PB-305</td><td>Enabler</td><td>Implement efficient local selectors and derived calculations so dashboard re-renders remain fast even with hundreds of expenses.</td><td>Must</td><td>M</td><td>Recompute stays within target performance and does not block the UI.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="epic5">
+      <h2>6. Epic 5 — Sync, Offline Queue & Conflict Resolution</h2>
+      <article class="epic">
+        <div class="epic-head">
+          <h3>Goal</h3>
+          <div class="goal">Deliver the hardest promise in the product: multiple devices can work independently offline and still converge on a trustworthy shared ledger when connectivity returns.</div>
+          <div class="epic-meta">
+            <span class="pill must">Epic Priority: Must Have</span>
+            <span class="pill enabler">Highest Technical Risk</span>
+            <span class="pill">Outcome: Shared ledger reconciles safely</span>
+          </div>
+        </div>
+        <div class="epic-body">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Type</th><th>Backlog Item</th><th>Priority</th><th>Size</th><th>Acceptance Snapshot</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="story-id">PB-401</td><td>Enabler</td><td>Create a durable local pending queue that records unsynced creates, edits, deletes, and join actions without losing order or identity.</td><td>Must</td><td>L</td><td>Pending items survive app refreshes, restarts, and temporary failures.</td></tr>
+              <tr><td class="story-id">PB-402</td><td>Enabler</td><td>Implement a pull-then-push sync loop so the client first ingests remote changes, then submits local pending changes.</td><td>Must</td><td>L</td><td>Devices converge cleanly after reconnect instead of blindly overwriting each other.</td></tr>
+              <tr><td class="story-id">PB-403</td><td>Enabler</td><td>Support Android/Chrome Background Sync and an iOS-safe foreground fallback on app focus or reconnect.</td><td>Must</td><td>M</td><td>Queued records start syncing within the agreed reconnect window on both major mobile platforms.</td></tr>
+              <tr><td class="story-id">PB-404</td><td>Enabler</td><td>Implement field-level HLC merge rules so independent edits on different fields can merge automatically.</td><td>Must</td><td>L</td><td>Non-overlapping edits resolve without unnecessary user intervention.</td></tr>
+              <tr><td class="story-id">PB-405</td><td>User Story</td><td>As a trip organiser, I want conflicting edits to be surfaced clearly with both versions shown side by side, so that I can make an informed choice instead of losing data silently.</td><td>Must</td><td>M</td><td>Conflict card shows both versions, their origins, and clear winner actions.</td></tr>
+              <tr><td class="story-id">PB-406</td><td>Enabler</td><td>Archive the rejected conflict version and restore the winning record to synced state after resolution.</td><td>Must</td><td>M</td><td>No conflict disappears without trace; the ledger becomes stable again after the user decides.</td></tr>
+              <tr><td class="story-id">PB-407</td><td>User Story</td><td>As any traveller, I want my queued expenses to sync automatically when signal returns, so that I do not have to remember to manually push data after every dead zone.</td><td>Must</td><td>S</td><td>Pending items sync without requiring a refresh button or manual command.</td></tr>
+            </tbody>
+          </table>
+          <div class="note">
+            <strong>Why this epic is special:</strong> this is the core moat of TripLedger. It should be treated as early-cycle work, not late integration work. If this epic is weak, the rest of the product promise collapses.
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section id="epic6">
+      <h2>7. Epic 6 — Security, Data & Release Readiness</h2>
+      <article class="epic">
+        <div class="epic-head">
+          <h3>Goal</h3>
+          <div class="goal">Make the MVP safe to release by grounding it in a secure data model, region-appropriate hosting, operational telemetry, and realistic test coverage for offline behavior.</div>
+          <div class="epic-meta">
+            <span class="pill must">Epic Priority: Must Have</span>
+            <span class="pill enabler">Release Safeguards</span>
+            <span class="pill">Outcome: MVP is shippable and supportable</span>
+          </div>
+        </div>
+        <div class="epic-body">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Type</th><th>Backlog Item</th><th>Priority</th><th>Size</th><th>Acceptance Snapshot</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="story-id">PB-501</td><td>Enabler</td><td>Model the core cloud and local entities for trips, categories, expenses, memberships, tombstones, and conflict metadata.</td><td>Must</td><td>M</td><td>Data model supports offline creation, joining, sync, and conflict preservation without redesign.</td></tr>
+              <tr><td class="story-id">PB-502</td><td>Enabler</td><td>Enable Supabase Row Level Security and membership-aware policies before beta launch.</td><td>Must</td><td>M</td><td>One trip’s data cannot be read or modified by a non-member device/session.</td></tr>
+              <tr><td class="story-id">PB-503</td><td>Enabler</td><td>Make sync writes idempotent so retries or duplicate deliveries do not create duplicate expenses or ledger corruption.</td><td>Must</td><td>M</td><td>Repeated submission of the same mutation returns a stable outcome.</td></tr>
+              <tr><td class="story-id">PB-504</td><td>Enabler</td><td>Add operational logging and alerts for sync failures, data-loss indicators, and unusually high conflict rates.</td><td>Must</td><td>M</td><td>Reliability issues are visible to the team during beta, not discovered only by users.</td></tr>
+              <tr><td class="story-id">PB-505</td><td>Enabler</td><td>Create storage-quota and local-retention safeguards so low-end devices do not fail silently when IndexedDB pressure rises.</td><td>Should</td><td>M</td><td>The app can warn users and preserve unsynced records first if storage becomes constrained.</td></tr>
+              <tr><td class="story-id">PB-506</td><td>Enabler</td><td>Build a QA checklist and automated regression coverage for offline launch, trip setup, quick-add, reconnect sync, and conflict resolution.</td><td>Must</td><td>M</td><td>Core paths are repeatably testable before beta and before public launch.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section id="deferred">
+      <h2>8. Deferred Backlog (Post-MVP / Later Phases)</h2>
+      <div class="card">
+        <p>These items are valuable, but the source documents explicitly defer them to protect the 12-week MVP and keep focus on the offline-first core.</p>
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Backlog Item</th><th>Why Deferred</th><th>Target Phase</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="story-id">DB-601</td><td>Receipt photo capture and cloud storage</td><td>Adds file upload complexity and offline blob sync risk.</td><td>Phase 2</td></tr>
+            <tr><td class="story-id">DB-602</td><td>Multi-currency with live exchange rates</td><td>Introduces online dependency not needed for India-first MVP.</td><td>Phase 2</td></tr>
+            <tr><td class="story-id">DB-603</td><td>GPS-based expense tagging</td><td>Adds permissions, device variability, and battery concerns.</td><td>Phase 2</td></tr>
+            <tr><td class="story-id">DB-604</td><td>Advanced spend charts and post-trip analytics</td><td>Secondary to in-trip logging and variance visibility.</td><td>Phase 2</td></tr>
+            <tr><td class="story-id">DB-605</td><td>PDF / CSV export</td><td>Useful but not required to validate the core job-to-be-done.</td><td>Phase 2</td></tr>
+            <tr><td class="story-id">DB-606</td><td>UPI-integrated settlement</td><td>Requires regulated payment integration and legal review.</td><td>Phase 3</td></tr>
+            <tr><td class="story-id">DB-607</td><td>Native Android / iOS applications</td><td>PWA route already delivers the MVP value with less cost and friction.</td><td>Phase 3</td></tr>
+            <tr><td class="story-id">DB-608</td><td>International / Southeast Asia trip support</td><td>Market expansion comes after India PMF is proven.</td><td>Phase 2</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="sequence">
+      <h2>9. Suggested Delivery Sequence</h2>
+      <div class="card">
+        <p>The backlog is most likely to succeed if built in the order below. This sequencing follows the product’s risk profile, not just UI visibility.</p>
+        <div class="seq">
+          <div class="step"><div class="n">Step 1</div><div class="t">Foundation</div><div class="d">PWA shell, service worker, local database, baseline state model.</div></div>
+          <div class="step"><div class="n">Step 2</div><div class="t">Trip Setup</div><div class="d">Create trip, categories, share code, local persistence.</div></div>
+          <div class="step"><div class="n">Step 3</div><div class="t">Quick Add</div><div class="d">3-tap expense flow with optimistic UI and pending state.</div></div>
+          <div class="step"><div class="n">Step 4</div><div class="t">Dashboard</div><div class="d">Totals, category variance, history, settlement base.</div></div>
+          <div class="step"><div class="n">Step 5</div><div class="t">Sync Engine</div><div class="d">Pull/push sync, queue replay, Android and iOS reconnect handling.</div></div>
+          <div class="step"><div class="n">Step 6</div><div class="t">Conflicts & QA</div><div class="d">Conflict UI, RLS hardening, telemetry, beta release testing.</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>What “MVP done” should mean</h3>
+        <ul>
+          <li>A trip can be created and shared from one device.</li>
+          <li>Multiple devices can log expenses without signal.</li>
+          <li>The dashboard remains trustworthy offline.</li>
+          <li>Pending records sync automatically after reconnect.</li>
+          <li>Conflicts are surfaced and resolvable without data loss.</li>
+          <li>The app is installable, testable, supportable, and safe for beta.</li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="footer">
+      TripLedger Product Backlog v1.0 • Single self-contained HTML file for review, download, editing, and sharing across product, engineering, design, and QA.
+    </div>
+  </div>
+</body>
+</html>

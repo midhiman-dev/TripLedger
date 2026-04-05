@@ -1,0 +1,877 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TripLedger SRS v1.0</title>
+  <style>
+    :root{
+      --bg:#f6f8fb;
+      --card:#ffffff;
+      --ink:#172033;
+      --muted:#5b6475;
+      --line:#dbe2ee;
+      --brand:#3b82f6;
+      --brand2:#0f172a;
+      --good:#15803d;
+      --warn:#b45309;
+      --bad:#b91c1c;
+      --chip:#eef4ff;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family: Inter, "Segoe UI", Roboto, Arial, sans-serif;
+      color:var(--ink);
+      background:linear-gradient(180deg,#eef4ff 0,#f7f9fc 180px,var(--bg) 181px);
+      line-height:1.5;
+    }
+    .wrap{max-width:1100px;margin:0 auto;padding:32px 24px 72px}
+    .hero{
+      background:linear-gradient(135deg,#0f172a 0,#1d4ed8 100%);
+      color:#fff;
+      border-radius:24px;
+      padding:36px 40px;
+      box-shadow:0 18px 60px rgba(15,23,42,.22);
+      margin-bottom:24px;
+    }
+    .eyebrow{
+      display:inline-block;
+      padding:6px 10px;
+      border:1px solid rgba(255,255,255,.24);
+      border-radius:999px;
+      font-size:12px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      opacity:.92;
+      margin-bottom:14px;
+    }
+    h1,h2,h3,h4{margin:0 0 12px}
+    h1{font-size:36px;line-height:1.15}
+    h2{
+      font-size:26px;
+      margin-top:42px;
+      padding-top:8px;
+      border-top:1px solid var(--line);
+    }
+    h3{font-size:20px;margin-top:22px}
+    h4{font-size:16px;margin-top:18px}
+    p{margin:10px 0}
+    .sub{
+      font-size:18px;
+      opacity:.94;
+      max-width:880px;
+      margin-top:10px;
+    }
+    .meta{
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+      margin-top:22px;
+    }
+    .meta .item,.card,.toc,.notice{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:18px;
+      box-shadow:0 8px 26px rgba(15,23,42,.05);
+    }
+    .meta .item{
+      padding:14px 16px;
+      background:rgba(255,255,255,.1);
+      color:#fff;
+      border-color:rgba(255,255,255,.16);
+      box-shadow:none;
+    }
+    .label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;opacity:.78}
+    .value{font-size:15px;font-weight:700;margin-top:4px}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .toc{
+      padding:20px 22px;
+      margin:22px 0 12px;
+      background:#fff;
+    }
+    .toc ol{
+      margin:10px 0 0 18px;
+      padding:0;
+      columns:2;
+      column-gap:36px;
+    }
+    .toc li{margin:8px 0;color:var(--muted)}
+    .toc a{color:#1d4ed8;text-decoration:none}
+    .card{padding:20px 22px;margin:16px 0}
+    .notice{
+      padding:16px 18px;
+      background:#fffdf4;
+      border-color:#fde68a;
+      margin:16px 0;
+    }
+    .pill{
+      display:inline-block;
+      padding:4px 10px;
+      border-radius:999px;
+      background:var(--chip);
+      color:#1849a9;
+      font-size:12px;
+      font-weight:700;
+      margin-right:8px;
+      margin-bottom:8px;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      margin:12px 0 4px;
+      font-size:14px;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:14px;
+      overflow:hidden;
+    }
+    th,td{
+      padding:12px 12px;
+      border-bottom:1px solid var(--line);
+      text-align:left;
+      vertical-align:top;
+    }
+    th{
+      background:#f7faff;
+      font-size:13px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      color:#42506a;
+    }
+    tr:last-child td{border-bottom:none}
+    ul,ol{margin:8px 0 10px 22px}
+    li{margin:6px 0}
+    .kpi{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:14px;
+      margin:18px 0;
+    }
+    .kpi .box{
+      border:1px solid var(--line);
+      border-radius:16px;
+      background:#fff;
+      padding:14px 16px;
+    }
+    .kpi .num{
+      font-size:26px;
+      font-weight:800;
+      line-height:1.1;
+      margin-bottom:6px;
+    }
+    .small{font-size:13px;color:var(--muted)}
+    .diagram{
+      background:#fbfcfe;
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:12px;
+      margin:16px 0;
+      overflow:auto;
+    }
+    pre{
+      margin:0;
+      white-space:pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size:13px;
+      line-height:1.35;
+      color:#10213b;
+    }
+    .svg-wrap{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:12px;
+      margin:16px 0;
+      overflow:auto;
+    }
+    .caption{
+      color:var(--muted);
+      font-size:13px;
+      margin-top:6px;
+    }
+    .req-id{
+      font-weight:800;
+      color:#1d4ed8;
+      white-space:nowrap;
+    }
+    .risk-high{color:var(--bad);font-weight:700}
+    .risk-med{color:var(--warn);font-weight:700}
+    .risk-low{color:var(--good);font-weight:700}
+    .footer{
+      margin-top:44px;
+      padding-top:18px;
+      border-top:1px solid var(--line);
+      color:var(--muted);
+      font-size:13px;
+    }
+    .print-break{break-before:page;page-break-before:always}
+    @media (max-width:900px){
+      .meta,.grid-2,.grid-3,.kpi{grid-template-columns:1fr}
+      .toc ol{columns:1}
+      h1{font-size:30px}
+      .wrap{padding:20px 14px 56px}
+      .hero{padding:28px 24px}
+    }
+    @media print{
+      body{background:#fff}
+      .hero{box-shadow:none}
+      .card,.toc,.notice,.meta .item,.kpi .box,.svg-wrap,.diagram{box-shadow:none}
+      a{color:inherit;text-decoration:none}
+      .wrap{max-width:none;padding:0}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Software Requirements Specification</div>
+      <h1>TripLedger<br/>Offline-First Trip Budget & Expense Tracker</h1>
+      <div class="sub">
+        Technical execution specification for the MVP release of TripLedger, synthesizing the BRD, PRD, and offline-first architecture context into an implementation-ready SRS.
+      </div>
+      <div class="meta">
+        <div class="item"><div class="label">Document</div><div class="value">SRS v1.0</div></div>
+        <div class="item"><div class="label">Status</div><div class="value">Draft for Engineering</div></div>
+        <div class="item"><div class="label">Prepared On</div><div class="value">05 April 2026</div></div>
+        <div class="item"><div class="label">Scope</div><div class="value">MVP / Phase 1</div></div>
+      </div>
+    </section>
+
+    <section class="toc">
+      <h3>Contents</h3>
+      <ol>
+        <li><a href="#intro">Introduction</a></li>
+        <li><a href="#architecture">System Architecture</a></li>
+        <li><a href="#functional">Functional Technical Requirements</a></li>
+        <li><a href="#nonfunctional">Non-Functional Requirements</a></li>
+        <li><a href="#interfaces">External Interface Requirements</a></li>
+        <li><a href="#data">Data Model</a></li>
+        <li><a href="#error">Error Handling & Recovery</a></li>
+        <li><a href="#assumptions">Assumptions & Out of Scope</a></li>
+        <li><a href="#traceability">Source Traceability</a></li>
+      </ol>
+    </section>
+
+    <section id="intro">
+      <h2>1. Introduction</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>1.1 Purpose</h3>
+          <p>TripLedger is an offline-first Progressive Web App for Indian road-trip groups to create shared trip budgets, log expenses without connectivity, and reconcile data when network access returns. The software shall prioritize fast local interactions, durable local storage, and conflict-aware synchronization over always-online assumptions.</p>
+          <p>This SRS converts product intent into technical requirements that engineering, QA, and architecture teams can implement and verify.</p>
+        </div>
+        <div class="card">
+          <h3>1.2 Scope</h3>
+          <p>The MVP covers trip creation, category budgeting, 3-tap expense logging, local-first dashboarding, deferred trip joining, PWA installation, background/foreground sync, and conflict resolution.</p>
+          <p>Receipt upload, GPS tagging, multi-currency, advanced analytics, exports, UPI settlement, and native mobile apps are outside MVP scope.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>1.3 Product Objectives and Engineering Translation</h3>
+        <table>
+          <thead>
+            <tr><th>Business Objective</th><th>Technical Implication</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Offline reliability as product moat</td><td>All core reads/writes shall execute locally first. No critical flow shall block on a remote call.</td></tr>
+            <tr><td>Fast, low-friction usage in travel conditions</td><td>Expense logging shall complete in ≤ 3 taps with optimistic UI and no loading spinner.</td></tr>
+            <tr><td>Zero data loss benchmark</td><td>Soft deletes, immutable client IDs, durable pending queues, and explicit conflict workflows are mandatory.</td></tr>
+            <tr><td>Install without app-store friction</td><td>The app shall meet installable PWA requirements, launch in standalone mode, and support offline shell caching.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>1.4 Definitions and Technical Terms</h3>
+        <table>
+          <thead>
+            <tr><th>Term</th><th>Definition</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Offline-first</td><td>Design principle where local device operation is the default mode and network connectivity is treated as an enhancement rather than a prerequisite.</td></tr>
+            <tr><td>PWA</td><td>Progressive Web App installable from the browser, capable of standalone launch, local caching, and service-worker-driven offline behavior.</td></tr>
+            <tr><td>IndexedDB</td><td>Browser local database used to persist trips, categories, expenses, membership state, and sync metadata on device.</td></tr>
+            <tr><td>Dexie.js</td><td>IndexedDB wrapper used to model tables, transactions, and reactive data access on the client.</td></tr>
+            <tr><td>HLC</td><td>Hybrid Logical Clock represented as { wallClock, logical, nodeId } and used for deterministic ordering during sync and merge.</td></tr>
+            <tr><td>Conflict</td><td>A true merge collision where the same field of the same record is edited offline on two devices and cannot be safely auto-merged.</td></tr>
+            <tr><td>RLS</td><td>Row Level Security policies in Supabase/Postgres that restrict data visibility and mutation by membership and device/session context.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <h2>2. System Architecture</h2>
+
+      <div class="card">
+        <h3>2.1 Architectural Style</h3>
+        <p>The system shall be implemented as a client-heavy, offline-first SPA using <strong>Vite + React</strong> for presentation, <strong>Zustand</strong> for local UI state, <strong>Dexie.js/IndexedDB</strong> for durable local data, <strong>Workbox service workers</strong> for shell caching and sync orchestration, and <strong>Supabase</strong> for cloud persistence, synchronization endpoints, and row-level protected data access.</p>
+      </div>
+
+      <div class="svg-wrap">
+        <svg width="1020" height="430" viewBox="0 0 1020 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TripLedger logical architecture">
+          <defs>
+            <style>
+              .bx{fill:#fff;stroke:#cfd8e8;stroke-width:2}
+              .hd{fill:#eef4ff;stroke:#cfd8e8;stroke-width:2}
+              .t{font:600 15px Inter,Segoe UI,Arial,sans-serif;fill:#162033}
+              .s{font:13px Inter,Segoe UI,Arial,sans-serif;fill:#44516a}
+              .a{stroke:#5b6f92;stroke-width:2;marker-end:url(#m)}
+            </style>
+            <marker id="m" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <polygon points="0 0, 6 3, 0 6" fill="#5b6f92"/>
+            </marker>
+          </defs>
+
+          <rect x="20" y="22" width="610" height="385" rx="18" class="hd"/>
+          <text x="42" y="50" class="t">Client Device / Browser Runtime</text>
+
+          <rect x="42" y="78" width="252" height="88" rx="14" class="bx"/>
+          <text x="58" y="104" class="t">React PWA UI</text>
+          <text x="58" y="126" class="s">Trip setup, quick-add expense, dashboard,</text>
+          <text x="58" y="146" class="s">history, settlement, conflict resolution UI</text>
+
+          <rect x="42" y="190" width="252" height="96" rx="14" class="bx"/>
+          <text x="58" y="216" class="t">Zustand + Domain Services</text>
+          <text x="58" y="238" class="s">validation, optimistic updates, sync state,</text>
+          <text x="58" y="258" class="s">derived totals, thresholds, view models</text>
+
+          <rect x="42" y="310" width="252" height="72" rx="14" class="bx"/>
+          <text x="58" y="336" class="t">Browser APIs</text>
+          <text x="58" y="358" class="s">Navigator.onLine, Share Sheet, Install Prompt,</text>
+          <text x="58" y="378" class="s">Notifications (future), storage quota APIs</text>
+
+          <rect x="334" y="78" width="272" height="98" rx="14" class="bx"/>
+          <text x="350" y="104" class="t">Dexie / IndexedDB</text>
+          <text x="350" y="126" class="s">trips, categories, expenses, participants,</text>
+          <text x="350" y="146" class="s">pending queue, conflict records, sync log</text>
+
+          <rect x="334" y="204" width="272" height="122" rx="14" class="bx"/>
+          <text x="350" y="230" class="t">Service Worker / Workbox</text>
+          <text x="350" y="252" class="s">app shell precache, runtime cache, background sync,</text>
+          <text x="350" y="272" class="s">foreground fallback on iOS, versioned cache updates,</text>
+          <text x="350" y="292" class="s">offline load and queued POST replay</text>
+
+          <rect x="694" y="24" width="304" height="188" rx="18" class="hd"/>
+          <text x="716" y="52" class="t">Cloud Backend</text>
+
+          <rect x="716" y="74" width="260" height="62" rx="14" class="bx"/>
+          <text x="732" y="100" class="t">Supabase Postgres + RLS</text>
+          <text x="732" y="121" class="s">authoritative shared trip data</text>
+
+          <rect x="716" y="146" width="260" height="50" rx="14" class="bx"/>
+          <text x="732" y="175" class="t">Sync API / Edge Functions</text>
+
+          <rect x="694" y="238" width="304" height="168" rx="18" class="hd"/>
+          <text x="716" y="266" class="t">Observability & Analytics</text>
+
+          <rect x="716" y="290" width="118" height="76" rx="14" class="bx"/>
+          <text x="734" y="316" class="t">Sentry</text>
+          <text x="734" y="338" class="s">errors, sync failures,</text>
+          <text x="734" y="356" class="s">zero-data-loss tracking</text>
+
+          <rect x="858" y="290" width="118" height="76" rx="14" class="bx"/>
+          <text x="876" y="316" class="t">PostHog</text>
+          <text x="876" y="338" class="s">consented events,</text>
+          <text x="876" y="356" class="s">activation and UX KPIs</text>
+
+          <line x1="294" y1="122" x2="334" y2="122" class="a"/>
+          <line x1="294" y1="238" x2="334" y2="238" class="a"/>
+          <line x1="470" y1="176" x2="470" y2="204" class="a"/>
+          <line x1="606" y1="125" x2="716" y2="105" class="a"/>
+          <line x1="606" y1="264" x2="716" y2="170" class="a"/>
+          <line x1="606" y1="264" x2="716" y2="328" class="a"/>
+          <line x1="294" y1="344" x2="334" y2="344" class="a"/>
+          <line x1="170" y1="166" x2="170" y2="190" class="a"/>
+        </svg>
+        <div class="caption">Figure 1. Logical component architecture for the TripLedger MVP.</div>
+      </div>
+
+      <div class="card">
+        <h3>2.2 Runtime Behavior</h3>
+        <table>
+          <thead><tr><th>Mode</th><th>Expected Behavior</th></tr></thead>
+          <tbody>
+            <tr><td>Cold start, online</td><td>Load cached shell if available, hydrate from IndexedDB, then refresh from cloud where needed.</td></tr>
+            <tr><td>Cold start, offline</td><td>Load cached shell within target time, use IndexedDB as sole source of truth, surface offline banner and pending state.</td></tr>
+            <tr><td>User write while offline</td><td>Write to IndexedDB transactionally, generate UUID and HLC locally, update UI immediately, add queue entry for sync.</td></tr>
+            <tr><td>Reconnect on Android/Chrome</td><td>Service worker sync event shall replay queued mutations and fetch deltas.</td></tr>
+            <tr><td>Reconnect on iOS/Safari</td><td>Foreground poller on app focus or connectivity change shall trigger queued sync because Background Sync API support is limited.</td></tr>
+            <tr><td>Conflict detected</td><td>Do not silently overwrite. Mark record as CONFLICT, archive both variants, and route to conflict resolution UI.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="diagram">
+        <pre>SYNC SEQUENCE (AUTHORITATIVE FLOW)
+
+1. User action on device
+   → validate locally
+   → write record to IndexedDB
+   → set sync_status = PENDING
+   → attach HLC + deviceId + UUID
+   → update dashboard immediately
+
+2. Connectivity restored
+   → client/SW requests server changes since last_sync_hlc
+   → client merges server deltas field-by-field
+   → client pushes pending local mutations
+
+3. Server merge
+   → append non-conflicting new records
+   → merge same record / different field by HLC
+   → same field / same ordering ambiguity => create conflict payload
+
+4. Client finalization
+   → PENDING becomes SYNCED for committed records
+   → conflicting records become CONFLICT
+   → sync indicator updates globally</pre>
+      </div>
+
+      <div class="card">
+        <h3>2.3 Deployment Topology</h3>
+        <table>
+          <thead><tr><th>Layer</th><th>MVP Hosting / Technology</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Web App</td><td>Vercel static deployment / CDN</td><td>Single-origin deployment is mandatory for service worker scope.</td></tr>
+            <tr><td>Local Persistence</td><td>IndexedDB via Dexie.js</td><td>Primary runtime persistence during travel and low-signal usage.</td></tr>
+            <tr><td>Backend Data</td><td>Supabase Postgres in Mumbai region</td><td>Regional alignment for DPDP and low-latency India-first deployment.</td></tr>
+            <tr><td>Backend Logic</td><td>Supabase functions / sync endpoint</td><td>Field-level merge, authorization checks, conflict creation.</td></tr>
+            <tr><td>Monitoring</td><td>Sentry + PostHog</td><td>No analytics before explicit consent. Sentry active before beta launch.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="functional">
+      <h2>3. Functional Technical Requirements</h2>
+
+      <div class="notice">
+        The requirement IDs below are technicalized from the BRD/PRD. Priority levels: <strong>P1</strong> = MVP blocking, <strong>P2</strong> = MVP preferred, <strong>P3</strong> = post-MVP or stretch.
+      </div>
+
+      <div class="card">
+        <h3>3.1 Trip Lifecycle</h3>
+        <table>
+          <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th><th>Verification</th></tr></thead>
+          <tbody>
+            <tr><td class="req-id">TR-01</td><td>The app shall create a trip with required fields: trip name, start date, total budget in INR; end date shall be optional.</td><td>P1</td><td>UI validation + unit test + IndexedDB write test</td></tr>
+            <tr><td class="req-id">TR-02</td><td>Trip creation shall persist locally within 200 ms of submit on supported devices, even with no network connectivity.</td><td>P1</td><td>performance test</td></tr>
+            <tr><td class="req-id">TR-03</td><td>The app shall support up to 8 categories per trip, pre-seeded with Fuel, Food, Stay, Toll, Entertainment, and Other.</td><td>P1</td><td>functional test</td></tr>
+            <tr><td class="req-id">TR-04</td><td>The client shall generate a unique 6-character alphanumeric trip code for sharing and remote membership lookup.</td><td>P1</td><td>unit test + integration test</td></tr>
+            <tr><td class="req-id">TR-05</td><td>Joining a trip while offline shall create a pending membership request that completes on next successful sync.</td><td>P1</td><td>offline simulation</td></tr>
+            <tr><td class="req-id">TR-06</td><td>On first successful join sync, the device shall download the full trip snapshot and initialize its local ledger state.</td><td>P1</td><td>integration test</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>3.2 Expense Capture and Editing</h3>
+        <table>
+          <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th><th>Verification</th></tr></thead>
+          <tbody>
+            <tr><td class="req-id">TR-07</td><td>The primary expense flow shall support category → amount → add as the complete required interaction path.</td><td>P1</td><td>UX test</td></tr>
+            <tr><td class="req-id">TR-08</td><td>The app shall generate a client UUID using browser cryptographic APIs for each new expense.</td><td>P1</td><td>unit test</td></tr>
+            <tr><td class="req-id">TR-09</td><td>The app shall assign an HLC to each created or modified record and retain source node identity per device.</td><td>P1</td><td>unit test + sync integration test</td></tr>
+            <tr><td class="req-id">TR-10</td><td>An expense logged offline or online shall appear in the dashboard and expense history immediately without a network roundtrip or spinner.</td><td>P1</td><td>UI automation + latency measurement</td></tr>
+            <tr><td class="req-id">TR-11</td><td>The sync indicator shall increment the pending count immediately after a local mutation is committed.</td><td>P1</td><td>state test</td></tr>
+            <tr><td class="req-id">TR-12</td><td>Optional fields shall include description, typed location label, and paid_by, accessible through an expandable details section.</td><td>P2</td><td>functional test</td></tr>
+            <tr><td class="req-id">TR-13</td><td>Users shall be able to edit locally created expenses; editing another participant's expense shall require explicit confirmation.</td><td>P2</td><td>functional + UX test</td></tr>
+            <tr><td class="req-id">TR-14</td><td>Deletes shall be implemented as soft deletes using is_deleted=true. Hard deletes shall not be used in MVP data flows.</td><td>P2</td><td>database + sync test</td></tr>
+            <tr><td class="req-id">TR-15</td><td>Soft-deleted records shall be excluded from all dashboard totals, history views, settlement calculations, and shared summary screens.</td><td>P2</td><td>functional regression test</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>3.3 Dashboard, History, and Settlement</h3>
+        <table>
+          <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th><th>Verification</th></tr></thead>
+          <tbody>
+            <tr><td class="req-id">TR-16</td><td>The dashboard shall compute total budget, total spent, total remaining, and overall spend percentage entirely client-side from local data.</td><td>P1</td><td>unit + UI test</td></tr>
+            <tr><td class="req-id">TR-17</td><td>Each category card shall show icon, allocated budget, spent amount, percentage used, and health state thresholds: Green &lt;70%, Amber 70–90%, Red &gt;90%.</td><td>P1</td><td>functional test</td></tr>
+            <tr><td class="req-id">TR-18</td><td>The chronological expense history shall show amount, category, note/location if present, time, source device/person, and sync status.</td><td>P2</td><td>functional test</td></tr>
+            <tr><td class="req-id">TR-19</td><td>The settlement module shall calculate who owes whom entirely client-side and output a minimized transaction list.</td><td>P2</td><td>algorithm test + acceptance test</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>3.4 Sync Engine and Conflict Resolution</h3>
+        <table>
+          <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th><th>Verification</th></tr></thead>
+          <tbody>
+            <tr><td class="req-id">TR-20</td><td>A global sync state chip shall be present on every primary screen and support the values Synced, Pending(N), Offline, and Conflict.</td><td>P1</td><td>UI regression test</td></tr>
+            <tr><td class="req-id">TR-21</td><td>When connectivity is restored, the system shall initiate sync of all pending changes within 10 seconds using Background Sync where supported and a foreground fallback where not supported.</td><td>P1</td><td>browser/device integration test</td></tr>
+            <tr><td class="req-id">TR-22</td><td>The client shall perform a pull-then-push sync cycle: retrieve remote deltas since last_sync_hlc, merge locally, then submit pending local changes.</td><td>P1</td><td>integration test</td></tr>
+            <tr><td class="req-id">TR-23</td><td>Field-level merges shall auto-resolve when different fields of the same record change independently.</td><td>P1</td><td>conflict simulation</td></tr>
+            <tr><td class="req-id">TR-24</td><td>A true conflict shall be raised when the same field of the same record is changed on multiple devices and cannot be deterministically auto-resolved by HLC ordering rules.</td><td>P1</td><td>conflict simulation</td></tr>
+            <tr><td class="req-id">TR-25</td><td>For true conflicts, the system shall preserve both variants in conflict_data and present a human resolution screen with explicit winner selection.</td><td>P1</td><td>integration + UI test</td></tr>
+            <tr><td class="req-id">TR-26</td><td>Conflict resolution shall update the authoritative value, archive the rejected variant, and set the record state back to SYNCED after successful commit.</td><td>P1</td><td>integration test</td></tr>
+            <tr><td class="req-id">TR-27</td><td>The service worker shall cache the application shell using a cache-first policy and cache eligible GET data using stale-while-revalidate semantics.</td><td>P1</td><td>Lighthouse + offline test</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>3.5 PWA Installability and Local UX</h3>
+        <table>
+          <thead><tr><th>ID</th><th>Requirement</th><th>Priority</th><th>Verification</th></tr></thead>
+          <tbody>
+            <tr><td class="req-id">TR-28</td><td>The application shall ship a valid manifest.json with standalone display mode, start_url, theme/background colors, and maskable icons.</td><td>P2</td><td>Lighthouse + manual install test</td></tr>
+            <tr><td class="req-id">TR-29</td><td>After installation to home screen, the app shall launch without browser chrome and retain full offline functionality.</td><td>P2</td><td>manual install/offline test</td></tr>
+            <tr><td class="req-id">TR-30</td><td>The UI shall show a non-blocking offline banner within 1 second after connectivity loss and shall not interrupt in-progress data entry.</td><td>P1</td><td>browser offline simulation</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="nonfunctional">
+      <h2>4. Non-Functional Requirements</h2>
+
+      <div class="card">
+        <h3>4.1 Performance</h3>
+        <div class="kpi">
+          <div class="box"><div class="num">≤ 2s</div><div>Offline app-shell load</div><div class="small">from cache on a mid-range Android device</div></div>
+          <div class="box"><div class="num">≤ 300ms</div><div>Expense visible after add</div><div class="small">tap to rendered state</div></div>
+          <div class="box"><div class="num">≤ 200ms</div><div>Dashboard recompute</div><div class="small">after local write</div></div>
+          <div class="box"><div class="num">≤ 10s</div><div>Post-reconnect sync start/finish target</div><div class="small">all pending records initiated within 10s</div></div>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>Requirement</th></tr></thead>
+          <tbody>
+            <tr><td class="req-id">NFR-P-01</td><td>The cached app shell shall load within 2 seconds on a mid-range Android device in offline simulation.</td></tr>
+            <tr><td class="req-id">NFR-P-02</td><td>Expense logging shall render the new row/card state within 300 ms of the user confirming an amount.</td></tr>
+            <tr><td class="req-id">NFR-P-03</td><td>Dashboard recalculation after a new expense shall complete within 200 ms under a ledger size of at least 500 expenses.</td></tr>
+            <tr><td class="req-id">NFR-P-04</td><td>Sync push for 10 pending records on a stable 4G connection shall complete within 5 seconds under nominal backend health.</td></tr>
+            <tr><td class="req-id">NFR-P-05</td><td>The app shall maintain an IndexedDB footprint of 5 MB or less for a representative dataset of 500 expenses excluding future receipt attachments.</td></tr>
+            <tr><td class="req-id">NFR-P-06</td><td>The primary expense journey from FAB tap to visible item shall be completable in 6 seconds or less by a typical user on a mid-range device.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>4.2 Capacity and Scalability</h3>
+        <p>The source materials define growth targets in terms of active installs rather than strict simultaneous concurrency ceilings. This SRS therefore specifies scaling objectives aligned to the MVP business plan and managed-service architecture.</p>
+        <table>
+          <thead><tr><th>ID</th><th>Requirement</th></tr></thead>
+          <tbody>
+            <tr><td class="req-id">NFR-S-01</td><td>The MVP architecture shall support an initial closed beta of 100 users and a path to 5,000 active installs within 90 days without re-platforming.</td></tr>
+            <tr><td class="req-id">NFR-S-02</td><td>The backend design shall support typical trip groups of 2–6 participants and shall not hard-code assumptions that prevent future higher participant counts.</td></tr>
+            <tr><td class="req-id">NFR-S-03</td><td>Application hosting and database layers shall be horizontally scalable through Vercel and Supabase service tier upgrades rather than bespoke infrastructure changes.</td></tr>
+            <tr><td class="req-id">NFR-S-04</td><td>Sync processing shall be idempotent so retries, duplicate delivery, or app restarts do not create duplicate records or ledger corruption.</td></tr>
+            <tr><td class="req-id">NFR-S-05</td><td>Local query performance shall remain acceptable with at least 500 expenses per trip and 90 days of retained synced history on device.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>4.3 Security</h3>
+        <table>
+          <thead><tr><th>ID</th><th>Requirement</th></tr></thead>
+          <tbody>
+            <tr><td class="req-id">NFR-SEC-01</td><td>All network traffic between client and backend shall use HTTPS/TLS 1.2+ with HSTS enabled at the hosting layer where supported.</td></tr>
+            <tr><td class="req-id">NFR-SEC-02</td><td>All shared data tables in Supabase shall enforce Row Level Security before public beta launch.</td></tr>
+            <tr><td class="req-id">NFR-SEC-03</td><td>MVP access control shall be account-light: device identity and trip membership shall authorize access, and no email/password onboarding shall be required.</td></tr>
+            <tr><td class="req-id">NFR-SEC-04</td><td>The backend shall validate that a device/session can only read or mutate trips for which it has a valid membership association.</td></tr>
+            <tr><td class="req-id">NFR-SEC-05</td><td>The system shall minimize data collection and avoid unnecessary PII. Analytics shall use anonymous identifiers and activate only after consent.</td></tr>
+            <tr><td class="req-id">NFR-SEC-06</td><td>Local persistent data shall be scoped to browser origin. The implementation shall warn users that device/browser clearing can remove unsynced local data.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>4.4 Compliance and Data Residency</h3>
+        <table>
+          <thead><tr><th>ID</th><th>Requirement</th></tr></thead>
+          <tbody>
+            <tr><td class="req-id">NFR-C-01</td><td>User data for the MVP shall be stored in India using the Supabase Mumbai region.</td></tr>
+            <tr><td class="req-id">NFR-C-02</td><td>Analytics collection shall require explicit user consent in alignment with stated DPDP compliance intent.</td></tr>
+            <tr><td class="req-id">NFR-C-03</td><td>The application shall not provide financial advice; it shall only record, summarize, and reconcile trip expenses.</td></tr>
+            <tr><td class="req-id">NFR-C-04</td><td>Payment settlement integrations are excluded from MVP and shall not be partially implemented without separate compliance review.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>4.5 Reliability, Availability, and Quality</h3>
+        <table>
+          <thead><tr><th>ID</th><th>Requirement</th></tr></thead>
+          <tbody>
+            <tr><td class="req-id">NFR-R-01</td><td>The product objective is zero data loss incidents across sync operations; architecture and telemetry shall prioritize detection of any pending-record loss event.</td></tr>
+            <tr><td class="req-id">NFR-R-02</td><td>No user flow shall emit console errors under supported browser offline simulation for release qualification.</td></tr>
+            <tr><td class="req-id">NFR-R-03</td><td>The production build shall achieve a Lighthouse PWA score of 90 or higher before public launch.</td></tr>
+            <tr><td class="req-id">NFR-R-04</td><td>Release gating shall include offline simulation, sync conflict testing, installability validation, and critical path regression coverage.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="interfaces">
+      <h2>5. External Interface Requirements</h2>
+
+      <div class="card">
+        <h3>5.1 Software Interfaces</h3>
+        <table>
+          <thead><tr><th>Interface</th><th>Type</th><th>Direction</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>Supabase Postgres</td><td>cloud database</td><td>bi-directional</td><td>authoritative shared trip, category, expense, and membership state</td></tr>
+            <tr><td>Sync Endpoint / Edge Function</td><td>HTTPS JSON API</td><td>bi-directional</td><td>delta fetch, queued write submission, merge results, conflict payloads</td></tr>
+            <tr><td>Service Worker</td><td>browser runtime</td><td>internal</td><td>precache app shell, queue syncs, manage runtime cache, replay POST operations</td></tr>
+            <tr><td>Navigator.onLine</td><td>browser API</td><td>inbound signal</td><td>detect connectivity state changes and update sync badge/banner</td></tr>
+            <tr><td>Web Share API</td><td>browser/native bridge</td><td>outbound</td><td>share trip code to WhatsApp, SMS, and other installed apps</td></tr>
+            <tr><td>PostHog</td><td>analytics SDK</td><td>outbound</td><td>capture consented product usage events</td></tr>
+            <tr><td>Sentry</td><td>telemetry SDK</td><td>outbound</td><td>capture exceptions, sync errors, and reliability incidents</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>5.2 API Contract Expectations</h3>
+        <table>
+          <thead><tr><th>Operation</th><th>Minimum Request Data</th><th>Minimum Response Data</th></tr></thead>
+          <tbody>
+            <tr><td>GET /sync?since=&lt;hlc&gt;</td><td>trip context, membership context, last_sync_hlc</td><td>changed records, tombstones, server_hlc, pagination marker if needed</td></tr>
+            <tr><td>POST /sync</td><td>pending records array with UUID, HLC, record type, operation type, payload, device identity</td><td>committed record IDs, rejected records, conflicts array, updated watermark</td></tr>
+            <tr><td>Resolve conflict</td><td>conflict id, chosen winner, device/session identity</td><td>resolved authoritative record, archived conflict reference, new SYNCED state</td></tr>
+            <tr><td>Join trip</td><td>trip code, pending membership identity, device identity</td><td>accepted membership, full or incremental trip snapshot</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>5.3 Hardware and Platform Interfaces</h3>
+        <table>
+          <thead><tr><th>Surface</th><th>Requirement</th></tr></thead>
+          <tbody>
+            <tr><td>Android browsers</td><td>Primary PWA target; must support installation, cached shell load, and Background Sync when available.</td></tr>
+            <tr><td>iOS Safari / WebKit</td><td>Must support standalone PWA operation and offline usage; sync fallback shall use app focus/connectivity detection rather than relying solely on Background Sync.</td></tr>
+            <tr><td>Storage</td><td>The implementation shall monitor IndexedDB quota pressure and provide user-facing mitigation guidance if local capacity becomes constrained.</td></tr>
+            <tr><td>No special hardware</td><td>MVP does not require camera, GPS, biometrics, or device sensors.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="data">
+      <h2>6. Data Model</h2>
+
+      <div class="svg-wrap">
+        <svg width="1040" height="360" viewBox="0 0 1040 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TripLedger ER diagram">
+          <defs>
+            <style>
+              .b{fill:#fff;stroke:#cfd8e8;stroke-width:2}
+              .h{fill:#f7faff;stroke:#cfd8e8;stroke-width:2}
+              .tt{font:700 15px Inter,Segoe UI,Arial,sans-serif;fill:#152238}
+              .ss{font:13px Inter,Segoe UI,Arial,sans-serif;fill:#42506a}
+              .ln{stroke:#667a9d;stroke-width:2;marker-end:url(#am)}
+            </style>
+            <marker id="am" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <polygon points="0 0,6 3,0 6" fill="#667a9d"/>
+            </marker>
+          </defs>
+          <rect x="32" y="34" width="240" height="210" rx="16" class="b"/>
+          <rect x="32" y="34" width="240" height="36" rx="16" class="h"/>
+          <text x="48" y="57" class="tt">trips</text>
+          <text x="48" y="92" class="ss">id (UUID, PK)</text>
+          <text x="48" y="113" class="ss">name</text>
+          <text x="48" y="134" class="ss">start_date, end_date</text>
+          <text x="48" y="155" class="ss">base_currency</text>
+          <text x="48" y="176" class="ss">total_budget</text>
+          <text x="48" y="197" class="ss">created_at_hlc, updated_at_hlc</text>
+          <text x="48" y="218" class="ss">sync_status, is_deleted</text>
+
+          <rect x="400" y="18" width="260" height="278" rx="16" class="b"/>
+          <rect x="400" y="18" width="260" height="36" rx="16" class="h"/>
+          <text x="416" y="41" class="tt">expenses</text>
+          <text x="416" y="76" class="ss">id (UUID, PK)</text>
+          <text x="416" y="97" class="ss">trip_id (FK → trips.id)</text>
+          <text x="416" y="118" class="ss">category_id (FK → categories.id)</text>
+          <text x="416" y="139" class="ss">amount, currency</text>
+          <text x="416" y="160" class="ss">description, location, paid_by</text>
+          <text x="416" y="181" class="ss">logged_at</text>
+          <text x="416" y="202" class="ss">device_id</text>
+          <text x="416" y="223" class="ss">created_at_hlc, updated_at_hlc</text>
+          <text x="416" y="244" class="ss">sync_status, conflict_data</text>
+          <text x="416" y="265" class="ss">is_deleted</text>
+
+          <rect x="770" y="36" width="236" height="202" rx="16" class="b"/>
+          <rect x="770" y="36" width="236" height="36" rx="16" class="h"/>
+          <text x="786" y="59" class="tt">categories</text>
+          <text x="786" y="94" class="ss">id (UUID, PK)</text>
+          <text x="786" y="115" class="ss">trip_id (FK → trips.id)</text>
+          <text x="786" y="136" class="ss">name</text>
+          <text x="786" y="157" class="ss">budget_amount</text>
+          <text x="786" y="178" class="ss">icon, color</text>
+          <text x="786" y="199" class="ss">created_at_hlc, sync_status</text>
+
+          <rect x="398" y="312" width="264" height="38" rx="12" class="b"/>
+          <text x="414" y="336" class="tt">sync_log (local only)</text>
+
+          <rect x="30" y="270" width="242" height="78" rx="16" class="b"/>
+          <rect x="30" y="270" width="242" height="36" rx="16" class="h"/>
+          <text x="46" y="293" class="tt">trip_memberships (recommended)</text>
+          <text x="46" y="326" class="ss">trip_id, participant/device id, role, status</text>
+
+          <line x1="272" y1="137" x2="400" y2="137" class="ln"/>
+          <line x1="770" y1="140" x2="660" y2="140" class="ln"/>
+          <line x1="150" y1="270" x2="150" y2="244" class="ln"/>
+        </svg>
+        <div class="caption">Figure 2. Recommended MVP data model. The first three entities are explicitly grounded in the source materials; trip_memberships is included as an implementation necessity for secure trip sharing and RLS.</div>
+      </div>
+
+      <div class="card">
+        <h3>6.1 Core Entity Definitions</h3>
+        <table>
+          <thead><tr><th>Entity</th><th>Key Fields</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>trips</td><td>id, name, dates, base_currency, total_budget, created_by, created_at_hlc, updated_at_hlc, sync_status, is_deleted</td><td>Top-level ledger container; client-generated IDs are required for offline creation.</td></tr>
+            <tr><td>categories</td><td>id, trip_id, name, budget_amount, icon, color, created_at_hlc, sync_status</td><td>Budget buckets; configurable up to 8 categories.</td></tr>
+            <tr><td>expenses</td><td>id, trip_id, category_id, amount, currency, description, paid_by, location, logged_at, device_id, created_at_hlc, updated_at_hlc, sync_status, conflict_data, is_deleted</td><td>Core transactional ledger records.</td></tr>
+            <tr><td>sync_log</td><td>id, action, record_id, timestamp, details</td><td>Local-only operational history for troubleshooting and support diagnostics.</td></tr>
+            <tr><td>trip_memberships</td><td>trip_id, member identity, role, state</td><td>Required to back secure sharing and RLS even though not fully detailed in source docs.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>6.2 Data Flow</h3>
+        <div class="diagram">
+          <pre>CREATE / UPDATE FLOW
+UI action
+  → input validation
+  → domain service generates UUID + HLC
+  → Dexie transaction writes record + queue metadata
+  → Zustand recomputes totals and sync state
+  → Service worker or foreground poller submits queued mutation
+  → Supabase stores authoritative copy and returns result
+  → local status becomes SYNCED or CONFLICT
+
+READ FLOW
+screen opens
+  → read from IndexedDB immediately
+  → render local state
+  → if online, fetch remote deltas
+  → merge by HLC
+  → refresh visible state</pre>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>6.3 Data Retention and Lifecycle</h3>
+        <table>
+          <thead><tr><th>Data Type</th><th>Lifecycle Rule</th></tr></thead>
+          <tbody>
+            <tr><td>Pending unsynced records</td><td>Retain until committed or explicitly resolved; never evict automatically.</td></tr>
+            <tr><td>Synced records</td><td>Retain locally for rapid access; support future pruning/archival strategy if quota pressure appears.</td></tr>
+            <tr><td>Deleted records</td><td>Represent as tombstones using is_deleted to preserve sync integrity.</td></tr>
+            <tr><td>Conflict variants</td><td>Retain in conflict_data until resolution; keep archived rejected variant for auditability.</td></tr>
+            <tr><td>Analytics events</td><td>Emit only after consent and using anonymous identifiers.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="error">
+      <h2>7. Error Handling & Recovery</h2>
+
+      <div class="card">
+        <h3>7.1 Error Classes</h3>
+        <table>
+          <thead><tr><th>Error Class</th><th>Examples</th><th>Required Response</th></tr></thead>
+          <tbody>
+            <tr><td>Validation error</td><td>missing trip name, amount = 0, malformed trip code</td><td>Block submit, show inline guidance, do not create local dirty record.</td></tr>
+            <tr><td>Offline network absence</td><td>no signal, fetch timeout, background sync unavailable</td><td>Continue local operation, show Offline/Pending UI, queue sync for retry.</td></tr>
+            <tr><td>Merge conflict</td><td>same field edited on multiple devices</td><td>Create explicit conflict state and preserve both versions.</td></tr>
+            <tr><td>Authorization error</td><td>device not part of trip, RLS rejection</td><td>Stop remote action, preserve local queue, prompt rejoin/re-auth pathway.</td></tr>
+            <tr><td>Storage quota error</td><td>IndexedDB quota exceeded</td><td>Warn user, stop non-essential caching, preserve most recent pending data first.</td></tr>
+            <tr><td>Unexpected crash</td><td>render exception, service worker failure, parsing bug</td><td>Capture in Sentry, preserve local database, allow safe app restart.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>7.2 Recovery Requirements</h3>
+        <table>
+          <thead><tr><th>ID</th><th>Requirement</th></tr></thead>
+          <tbody>
+            <tr><td class="req-id">ERR-01</td><td>Any network failure during a mutation shall leave the locally created record intact and in PENDING state.</td></tr>
+            <tr><td class="req-id">ERR-02</td><td>Sync operations shall be retry-safe; replay of the same mutation shall not duplicate an expense or category.</td></tr>
+            <tr><td class="req-id">ERR-03</td><td>If the service worker is unavailable or unsupported for background replay, the app shall retry in the foreground when opened or focused.</td></tr>
+            <tr><td class="req-id">ERR-04</td><td>If merge logic cannot determine an automatic winner, the system shall prefer a surfaced conflict over silent overwrite.</td></tr>
+            <tr><td class="req-id">ERR-05</td><td>An Undo affordance should be presented after delete while the record remains recoverable as a soft-delete tombstone.</td></tr>
+            <tr><td class="req-id">ERR-06</td><td>Crash recovery shall prioritize rehydrating the last durable IndexedDB state on restart before any remote synchronization occurs.</td></tr>
+            <tr><td class="req-id">ERR-07</td><td>The app shall maintain an operational sync log locally for debugging support scenarios without exposing internal details to end users by default.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>7.3 Observability and Release Monitoring</h3>
+        <table>
+          <thead><tr><th>Telemetry</th><th>Required Coverage</th></tr></thead>
+          <tbody>
+            <tr><td>Sentry</td><td>sync failures, unexpected exceptions, offline recovery anomalies, zero-data-loss incident alarms</td></tr>
+            <tr><td>PostHog</td><td>trip_created, expense_logged, sync_completed, conflict_detected, conflict_resolved, app_installed, offline_session_start, dashboard_viewed</td></tr>
+            <tr><td>Operational dashboards</td><td>sync conflict rate, time-to-log, sync completion duration, offline usage percentage, install rate, retention proxy events</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="assumptions">
+      <h2>8. Assumptions & Out of Scope</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>8.1 Key Assumptions</h3>
+          <ul>
+            <li>Trip participation is intentionally lightweight; MVP avoids full account onboarding.</li>
+            <li>Cloud authorization is enforced through membership-aware backend policies even when the UI feels accountless.</li>
+            <li>HLC-based field merges and manual conflicts are preferred over CRDT complexity for this domain.</li>
+            <li>India is the primary market for MVP, and INR is the default operating currency.</li>
+            <li>Typical groups contain 2–6 travelers, but the data model should not hard-code this as an absolute limit.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>8.2 Explicitly Out of Scope for MVP</h3>
+          <ul>
+            <li>Receipt photo capture and blob synchronization</li>
+            <li>GPS-based location tagging</li>
+            <li>Multi-currency and live exchange rates</li>
+            <li>Advanced charts and post-trip analytics</li>
+            <li>PDF/CSV export</li>
+            <li>UPI-integrated settlement</li>
+            <li>Native iOS/Android apps</li>
+            <li>International travel support</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="traceability">
+      <h2>9. Source Traceability</h2>
+      <div class="card">
+        <p>This SRS was synthesized from the following source artifacts supplied for TripLedger:</p>
+        <table>
+          <thead><tr><th>Source</th><th>Used For</th></tr></thead>
+          <tbody>
+            <tr><td>TripLedger_BRD_v1.0</td><td>product scope, objectives, risks, regional constraints, platform stack, compliance, delivery milestones</td></tr>
+            <tr><td>TripLedger_PRD_v1.0</td><td>functional requirements, acceptance criteria, UX timing targets, dashboard behavior, sync states, analytics</td></tr>
+            <tr><td>TripLedger-Context.md</td><td>offline-first architecture, HLC sync model, service-worker caching strategy, recommended schema, technology choices</td></tr>
+          </tbody>
+        </table>
+        <p>The SRS tightens the source materials by consolidating duplicated requirements, resolving them into explicit technical behavior, and adding implementation-level assumptions where a secure or operable build requires them.</p>
+      </div>
+    </section>
+
+    <div class="footer">
+      TripLedger SRS v1.0 • Generated as a single self-contained HTML document for review, download, printing, or onward editing.
+    </div>
+  </div>
+</body>
+</html>
