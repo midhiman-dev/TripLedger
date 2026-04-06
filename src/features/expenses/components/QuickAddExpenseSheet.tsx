@@ -53,6 +53,7 @@ export function QuickAddExpenseSheet({
   const amountValid = Number.isFinite(parsedAmount) && parsedAmount > 0;
   const canSubmit = Boolean(categoryId) && amountValid && !isSaving;
   const currencyPrefix = formatCurrencyPrefix(currency);
+  const moreDetailsId = "quick-add-more-details";
 
   if (!isOpen) {
     return null;
@@ -153,6 +154,8 @@ export function QuickAddExpenseSheet({
 
           <div className="rounded-3xl bg-surface-container-low p-5">
             <button
+              aria-controls={moreDetailsId}
+              aria-expanded={showMoreDetails}
               className="flex w-full items-center justify-between gap-4 text-left"
               onClick={() => setShowMoreDetails((current) => !current)}
               type="button"
@@ -167,7 +170,7 @@ export function QuickAddExpenseSheet({
             </button>
 
             {showMoreDetails ? (
-              <div className="mt-6 space-y-4">
+              <div className="mt-6 space-y-4" id={moreDetailsId}>
                 <label className="block">
                   <span className="mb-2 block text-sm font-semibold text-on-surface/70">Note</span>
                   <input
@@ -218,5 +221,3 @@ export function QuickAddExpenseSheet({
     </div>
   );
 }
-
-
