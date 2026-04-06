@@ -31,7 +31,7 @@ describe("QuickAddExpenseSheet", () => {
         isSaving={false}
         onClose={vi.fn()}
         onSubmit={vi.fn().mockResolvedValue(undefined)}
-      />, 
+      />,
     );
 
     const toggle = screen.getByRole("button", { name: /more details/i });
@@ -72,6 +72,63 @@ describe("QuickAddExpenseSheet", () => {
       amount: "1250",
       description: "Dhaba stop",
       location: "NH-44",
+      paidBy: "Riya",
+    });
+  });
+
+  it("prefills an existing expense in edit mode and saves changes", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <QuickAddExpenseSheet
+        categories={categories}
+        currency="INR"
+        editingExpense={{
+          id: "expense-1",
+          tripId: "trip-1",
+          categoryId: "cat-fuel",
+          amount: 450,
+          currency: "INR",
+          description: "Dinner stop",
+          location: "Manali",
+          paidBy: "Riya",
+          loggedAt: "2026-04-06T10:12:00.000Z",
+          deviceId: "device-local",
+          createdAt: "2026-04-06T10:12:00.000Z",
+          updatedAt: "2026-04-06T10:12:00.000Z",
+          createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+          updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+          syncStatus: "pending",
+          conflictData: null,
+          isDeleted: false,
+        }}
+        isOpen
+        isSaving={false}
+        mode="edit"
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: /edit expense/i })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("450")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /more details/i })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByDisplayValue("Dinner stop")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Manali")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Riya")).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText(/expense amount/i));
+    await user.type(screen.getByLabelText(/expense amount/i), "520");
+    await user.clear(screen.getByLabelText(/expense note/i));
+    await user.type(screen.getByLabelText(/expense note/i), "Dinner corrected");
+    await user.click(screen.getByRole("button", { name: /^Save Changes$/i }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      categoryId: "cat-fuel",
+      amount: "520",
+      description: "Dinner corrected",
+      location: "Manali",
       paidBy: "Riya",
     });
   });

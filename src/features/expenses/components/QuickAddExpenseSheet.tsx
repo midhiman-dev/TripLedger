@@ -1,31 +1,41 @@
 import { useEffect, useMemo, useState } from "react";
 
-import type { CategoryRecord } from "../../../db/tripLedgerDb";
+import type { CategoryRecord, ExpenseRecord } from "../../../db/tripLedgerDb";
+
+type ExpenseSheetSubmitInput = {
+  categoryId: string;
+  amount: string;
+  description: string;
+  location: string;
+  paidBy: string;
+};
 
 type QuickAddExpenseSheetProps = {
   categories: CategoryRecord[];
   currency: string;
+  editingExpense?: ExpenseRecord | null;
   isOpen: boolean;
   isSaving: boolean;
+  mode?: "create" | "edit";
   onClose: () => void;
-  onSubmit: (input: {
-    categoryId: string;
-    amount: string;
-    description: string;
-    location: string;
-    paidBy: string;
-  }) => Promise<void>;
+  onSubmit: (input: ExpenseSheetSubmitInput) => Promise<void>;
 };
 
 function formatCurrencyPrefix(currency: string) {
   return currency === "INR" ? "Rs" : currency;
 }
 
+function toDraftAmount(amount: number) {
+  return amount === 0 ? "" : String(amount);
+}
+
 export function QuickAddExpenseSheet({
   categories,
   currency,
+  editingExpense = null,
   isOpen,
   isSaving,
+  mode = "create",
   onClose,
   onSubmit,
 }: QuickAddExpenseSheetProps) {
@@ -46,14 +56,49 @@ export function QuickAddExpenseSheet({
       setPaidBy("");
       setShowMoreDetails(false);
       setShowAmountError(false);
+      return;
     }
-  }, [isOpen]);
+
+    if (mode === "edit" && editingExpense) {
+      setCategoryId(editingExpense.categoryId);
+      setAmount(toDraftAmount(editingExpense.amount));
+      setDescription(editingExpense.description);
+      setLocation(editingExpense.location);
+      setPaidBy(editingExpense.paidBy === "You" ? "" : editingExpense.paidBy);
+      setShowMoreDetails(
+        Boolean(editingExpense.description || editingExpense.location || editingExpense.paidBy !== "You"),
+      );
+      setShowAmountError(false);
+      return;
+    }
+
+    setCategoryId("");
+    setAmount("");
+    setDescription("");
+    setLocation("");
+    setPaidBy("");
+    setShowMoreDetails(false);
+    setShowAmountError(false);
+  }, [
+    editingExpense,
+    isOpen,
+    mode,
+  ]);
 
   const parsedAmount = useMemo(() => Number.parseFloat(amount.replace(/,/g, "")), [amount]);
   const amountValid = Number.isFinite(parsedAmount) && parsedAmount > 0;
   const canSubmit = Boolean(categoryId) && amountValid && !isSaving;
   const currencyPrefix = formatCurrencyPrefix(currency);
   const moreDetailsId = "quick-add-more-details";
+  const sheetEyebrow = mode === "edit" ? "Recent activity" : "Quick Add";
+  const sheetTitle = mode === "edit" ? "Edit Expense" : "Quick Add Expense";
+  const submitLabel = isSaving
+    ? mode === "edit"
+      ? "Saving locally..."
+      : "Saving locally..."
+    : mode === "edit"
+      ? "Save Changes"
+      : "Add Expense";
 
   if (!isOpen) {
     return null;
@@ -77,7 +122,7 @@ export function QuickAddExpenseSheet({
   return (
     <div className="fixed inset-0 z-[60] flex flex-col justify-end bg-primary/30 backdrop-blur-sm">
       <button
-        aria-label="Close quick add"
+        aria-label={mode === "edit" ? "Close edit expense" : "Close quick add"}
         className="absolute inset-0 cursor-default"
         onClick={onClose}
         type="button"
@@ -86,9 +131,9 @@ export function QuickAddExpenseSheet({
         <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-surface-variant"></div>
         <div className="mb-8 flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">Quick Add</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">{sheetEyebrow}</p>
             <h2 className="font-headline text-3xl font-extrabold tracking-tight text-primary">
-              Quick Add Expense
+              {sheetTitle}
             </h2>
           </div>
           <button
@@ -214,7 +259,7 @@ export function QuickAddExpenseSheet({
             onClick={() => void handleSubmit()}
             type="button"
           >
-            {isSaving ? "Saving locally..." : "Add Expense"}
+            {submitLabel}
           </button>
         </div>
       </section>

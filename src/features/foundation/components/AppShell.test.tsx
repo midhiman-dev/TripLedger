@@ -17,6 +17,7 @@ const {
   updateCategoryBudgetMock,
   getTripExpensesMock,
   createExpenseMock,
+  updateExpenseMock,
 } = vi.hoisted(() => ({
   appMetaPutMock: vi.fn(),
   readPersistedSyncStatusMock: vi.fn<() => Promise<PersistedSyncStatus>>(),
@@ -27,6 +28,7 @@ const {
   updateCategoryBudgetMock: vi.fn(),
   getTripExpensesMock: vi.fn(),
   createExpenseMock: vi.fn(),
+  updateExpenseMock: vi.fn(),
 }));
 
 vi.mock("../../../db/tripLedgerDb", () => ({
@@ -62,6 +64,7 @@ vi.mock("../../categories/services/categoryService", () => ({
 vi.mock("../../expenses/services/expenseService", () => ({
   getTripExpenses: getTripExpensesMock,
   createExpense: createExpenseMock,
+  updateExpense: updateExpenseMock,
 }));
 
 const hydratedCategories = [
@@ -115,6 +118,7 @@ describe("AppShell", () => {
     updateCategoryBudgetMock.mockReset();
     getTripExpensesMock.mockReset();
     createExpenseMock.mockReset();
+    updateExpenseMock.mockReset();
 
     readPersistedSyncStatusMock.mockResolvedValue({
       mode: "synced",
@@ -329,7 +333,7 @@ describe("AppShell", () => {
     });
 
     await user.click(screen.getByRole("button", { name: /quick add expense/i }));
-    await user.click(screen.getByRole("button", { name: /fuel/i }));
+    await user.click(screen.getByRole("button", { name: /local_gas_station fuel/i }));
     await user.type(screen.getByLabelText(/expense amount/i), "1250");
     await user.click(screen.getByRole("button", { name: /^Add Expense$/i }));
 
@@ -350,5 +354,102 @@ describe("AppShell", () => {
     expect(recentExpenseCards[1]).toHaveTextContent(/older fuel stop/i);
     expect(screen.getByText(/expense added locally/i)).toBeInTheDocument();
   });
-});
 
+  it("prefills an expense for editing and updates recent activity immediately after save", async () => {
+    const user = userEvent.setup();
+    getLatestActiveTripMock.mockResolvedValue(activeTrip);
+    getTripCategoriesMock.mockResolvedValue(hydratedCategories);
+    getTripExpensesMock.mockResolvedValue([
+      {
+        id: "expense-1",
+        tripId: "trip-join",
+        categoryId: "cat-fuel",
+        amount: 450,
+        currency: "INR",
+        description: "Dinner stop",
+        location: "Manali",
+        paidBy: "Riya",
+        loggedAt: "2026-04-06T10:12:00.000Z",
+        deviceId: "device-local",
+        createdAt: "2026-04-06T10:12:00.000Z",
+        updatedAt: "2026-04-06T10:12:00.000Z",
+        createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        syncStatus: "synced",
+        conflictData: null,
+        isDeleted: false,
+      },
+    ]);
+    readPersistedSyncStatusMock
+      .mockResolvedValueOnce({
+        mode: "synced",
+        pendingCount: 0,
+        conflictCount: 0,
+        lastSyncedAt: "2026-04-05T10:00:00.000Z",
+      })
+      .mockResolvedValueOnce({
+        mode: "pending",
+        pendingCount: 1,
+        conflictCount: 0,
+        lastSyncedAt: "2026-04-06T10:20:00.000Z",
+      });
+    updateExpenseMock.mockResolvedValue({
+      id: "expense-1",
+      tripId: "trip-join",
+      categoryId: "cat-fuel",
+      amount: 520,
+      currency: "INR",
+      description: "Dinner corrected",
+      location: "Old Manali",
+      paidBy: "Riya",
+      loggedAt: "2026-04-06T10:12:00.000Z",
+      deviceId: "device-local",
+      createdAt: "2026-04-06T10:12:00.000Z",
+      updatedAt: "2026-04-06T10:25:00.000Z",
+      createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      updatedAtHlc: { wallClock: 2, logical: 0, nodeId: "device-local" },
+      syncStatus: "pending",
+      conflictData: null,
+      isDeleted: false,
+    });
+
+    await renderShell();
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /himalayan mission/i })).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /edit dinner stop/i }));
+
+    expect(screen.getByRole("heading", { name: /edit expense/i })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("450")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Dinner stop")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Manali")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Riya")).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText(/expense amount/i));
+    await user.type(screen.getByLabelText(/expense amount/i), "520");
+    await user.clear(screen.getByLabelText(/expense note/i));
+    await user.type(screen.getByLabelText(/expense note/i), "Dinner corrected");
+    await user.clear(screen.getByLabelText(/expense location/i));
+    await user.type(screen.getByLabelText(/expense location/i), "Old Manali");
+    await user.click(screen.getByRole("button", { name: /^Save Changes$/i }));
+
+    await waitFor(() => {
+      expect(updateExpenseMock).toHaveBeenCalledWith({
+        expenseId: "expense-1",
+        categoryId: "cat-fuel",
+        amount: "520",
+        description: "Dinner corrected",
+        location: "Old Manali",
+        paidBy: "Riya",
+      });
+    });
+
+    const recentExpenseCards = screen.getAllByTestId("recent-expense-card");
+    expect(recentExpenseCards[0]).toHaveTextContent(/dinner corrected/i);
+    expect(recentExpenseCards[0]).toHaveTextContent(/old manali/i);
+    expect(recentExpenseCards[0]).toHaveTextContent(/local pending/i);
+    expect(screen.getByText(/expense updated locally/i)).toBeInTheDocument();
+  });
+});

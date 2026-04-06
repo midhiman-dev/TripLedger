@@ -42,6 +42,7 @@ type TripStore = {
   setCategories: (categories: CategoryRecord[]) => void;
   setExpenses: (expenses: ExpenseRecord[]) => void;
   prependExpense: (expense: ExpenseRecord) => void;
+  replaceExpense: (expense: ExpenseRecord) => void;
   setCategoryBudgetDraft: (categoryId: string, value: string) => void;
   setCategoryError: (categoryId: string, message?: string) => void;
   setSavingCategoryId: (categoryId: string | null) => void;
@@ -86,6 +87,10 @@ function toBudgetDrafts(categories: CategoryRecord[]) {
   );
 }
 
+function sortExpensesByLoggedAt(expenses: ExpenseRecord[]) {
+  return [...expenses].sort((left, right) => right.loggedAt.localeCompare(left.loggedAt));
+}
+
 export const useTripStore = create<TripStore>((set) => ({
   ...defaultState,
   setScreenMode: (screenMode) => set({ screenMode }),
@@ -119,7 +124,18 @@ export const useTripStore = create<TripStore>((set) => ({
   setExpenses: (expenses) => set({ expenses }),
   prependExpense: (expense) =>
     set((state) => ({
-      expenses: [expense, ...state.expenses.filter((item) => item.id !== expense.id)],
+      expenses: sortExpensesByLoggedAt([
+        expense,
+        ...state.expenses.filter((item) => item.id !== expense.id),
+      ]),
+    })),
+  replaceExpense: (expense) =>
+    set((state) => ({
+      expenses: sortExpensesByLoggedAt(
+        state.expenses.some((item) => item.id === expense.id)
+          ? state.expenses.map((item) => (item.id === expense.id ? expense : item))
+          : [expense, ...state.expenses],
+      ),
     })),
   setCategoryBudgetDraft: (categoryId, value) =>
     set((state) => ({

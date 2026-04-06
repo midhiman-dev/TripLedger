@@ -16,7 +16,7 @@ import { createTrip, getLatestActiveTrip, getTripCategories } from "../../trips/
 import { useTripStore } from "../../trips/store/tripStore";
 import { updateCategoryBudget } from "../../categories/services/categoryService";
 import { QuickAddExpenseSheet } from "../../expenses/components/QuickAddExpenseSheet";
-import { createExpense, getTripExpenses } from "../../expenses/services/expenseService";
+import { createExpense, getTripExpenses, updateExpense } from "../../expenses/services/expenseService";
 
 function StatusPill({
   label,
@@ -129,9 +129,11 @@ function InstallCard({
 function RecentExpensesSection({
   expenses,
   categories,
+  onEditExpense,
 }: {
   expenses: ExpenseRecord[];
   categories: CategoryRecord[];
+  onEditExpense: (expense: ExpenseRecord) => void;
 }) {
   const categoryMap = new Map(categories.map((category) => [category.id, category]));
   const recentExpenses = expenses.slice(0, 4);
@@ -180,6 +182,7 @@ function RecentExpensesSection({
             const category = categoryMap.get(expense.categoryId);
             const isPending = expense.syncStatus === "pending";
             const isNewestPending = isPending && expense.id === newestExpenseId;
+            const expenseTitle = expense.description || category?.name || "Expense";
             return (
               <div
                 className={isNewestPending
@@ -202,7 +205,7 @@ function RecentExpensesSection({
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="font-headline text-xl font-bold text-primary">
-                          {expense.description || category?.name || "Expense"}
+                          {expenseTitle}
                         </h3>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-on-surface/70">
                           <span>{formatLoggedAt(expense.loggedAt)}</span>
@@ -231,6 +234,17 @@ function RecentExpensesSection({
                           Paid by {expense.paidBy || "You"}
                         </p>
                       </div>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        aria-label={`Edit ${expenseTitle}`}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-full bg-surface-container-highest px-4 py-2 text-sm font-semibold text-primary transition hover:brightness-105"
+                        onClick={() => onEditExpense(expense)}
+                        type="button"
+                      >
+                        <span className="material-symbols-outlined text-base">edit</span>
+                        Edit
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -346,6 +360,7 @@ export function AppShell() {
     setCategories,
     setExpenses,
     prependExpense,
+    replaceExpense,
     setCategoryBudgetDraft,
     setCategoryError,
     setSavingCategoryId,
@@ -364,6 +379,7 @@ export function AppShell() {
   } = useTripStore();
   const [isQuickAddOpen, setQuickAddOpen] = useState(false);
   const [isSavingExpense, setSavingExpense] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<ExpenseRecord | null>(null);
   const [expenseFeedback, setExpenseFeedback] = useState<string | null>(null);
   const [startupRecoveryMessage, setStartupRecoveryMessage] = useState<string | null>(null);
 
@@ -611,7 +627,12 @@ export function AppShell() {
     }
   }
 
-  async function handleQuickAddExpense(input: {
+  function closeExpenseSheet() {
+    setQuickAddOpen(false);
+    setEditingExpense(null);
+  }
+
+  async function handleExpenseSubmit(input: {
     categoryId: string;
     amount: string;
     description: string;
@@ -625,18 +646,32 @@ export function AppShell() {
     setSavingExpense(true);
 
     try {
-      const expense = await createExpense({
-        tripId: activeTrip.id,
-        categoryId: input.categoryId,
-        amount: input.amount,
-        currency: activeTrip.baseCurrency,
-        description: input.description,
-        location: input.location,
-        paidBy: input.paidBy,
-      });
-      prependExpense(expense);
-      setQuickAddOpen(false);
-      setExpenseFeedback("Expense added locally");
+      if (editingExpense) {
+        const updatedExpense = await updateExpense({
+          expenseId: editingExpense.id,
+          categoryId: input.categoryId,
+          amount: input.amount,
+          description: input.description,
+          location: input.location,
+          paidBy: input.paidBy,
+        });
+        replaceExpense(updatedExpense);
+        setExpenseFeedback("Expense updated locally");
+      } else {
+        const expense = await createExpense({
+          tripId: activeTrip.id,
+          categoryId: input.categoryId,
+          amount: input.amount,
+          currency: activeTrip.baseCurrency,
+          description: input.description,
+          location: input.location,
+          paidBy: input.paidBy,
+        });
+        prependExpense(expense);
+        setExpenseFeedback("Expense added locally");
+      }
+
+      closeExpenseSheet();
       setPersistedSyncStatus(await readPersistedSyncStatus());
     } finally {
       setSavingExpense(false);
@@ -689,7 +724,14 @@ export function AppShell() {
                 syncStatus={syncStatus}
                 trip={activeTrip}
               />
-              <RecentExpensesSection categories={categories} expenses={expenses} />
+              <RecentExpensesSection
+                categories={categories}
+                expenses={expenses}
+                onEditExpense={(expense) => {
+                  setEditingExpense(expense);
+                  setQuickAddOpen(true);
+                }}
+              />
             </>
           ) : screenMode === "join" ? (
             <JoinTripScreen
@@ -727,7 +769,10 @@ export function AppShell() {
         <button
           aria-label="Quick Add Expense"
           className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-secondary-container text-primary shadow-[0_12px_24px_rgba(254,165,32,0.3)] transition active:scale-95"
-          onClick={() => setQuickAddOpen(true)}
+          onClick={() => {
+            setEditingExpense(null);
+            setQuickAddOpen(true);
+          }}
           type="button"
         >
           <span className="material-symbols-outlined text-3xl">add</span>
@@ -753,12 +798,13 @@ export function AppShell() {
       <QuickAddExpenseSheet
         categories={categories}
         currency={activeTrip?.baseCurrency ?? "INR"}
+        editingExpense={editingExpense}
         isOpen={isQuickAddOpen}
         isSaving={isSavingExpense}
-        onClose={() => setQuickAddOpen(false)}
-        onSubmit={handleQuickAddExpense}
+        mode={editingExpense ? "edit" : "create"}
+        onClose={closeExpenseSheet}
+        onSubmit={handleExpenseSubmit}
       />
     </>
   );
 }
-
