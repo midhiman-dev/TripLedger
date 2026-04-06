@@ -7,6 +7,10 @@ import {
 } from "../lib/installPrompt";
 import { getSyncStatusViewModel, readPersistedSyncStatus } from "../lib/syncStatus";
 import { useShellStore } from "../store/shellStore";
+import { CreateTripScreen, TripSummaryScreen } from "../../trips/components/TripSetupScreens";
+import { validateTripDraft } from "../../trips/lib/tripDraft";
+import { createTrip, getLatestActiveTrip } from "../../trips/services/tripService";
+import { useTripStore } from "../../trips/store/tripStore";
 
 function StatusPill({
   label,
@@ -54,6 +58,68 @@ function OfflineBanner({ message }: { message: string }) {
   );
 }
 
+function InstallCard({
+  canInstall,
+  deferredInstallPrompt,
+  isInstalled,
+  updateReady,
+  markInstalled,
+  setInstallPrompt,
+}: {
+  canInstall: boolean;
+  deferredInstallPrompt: BeforeInstallPromptEvent | null;
+  isInstalled: boolean;
+  updateReady: boolean;
+  markInstalled: () => void;
+  setInstallPrompt: (prompt: BeforeInstallPromptEvent | null) => void;
+}) {
+  async function handleInstallClick() {
+    if (!deferredInstallPrompt) {
+      return;
+    }
+
+    await deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice;
+
+    if (choice.outcome === "accepted") {
+      markInstalled();
+      return;
+    }
+
+    setInstallPrompt(null);
+  }
+
+  return (
+    <div className="grid gap-3">
+      <div className="flex flex-wrap gap-2">
+        <StatusPill
+          label={isInstalled ? "Installed" : "Browser"}
+          tone={isInstalled ? "synced" : "pending"}
+        />
+        <StatusPill
+          label={updateReady ? "Update ready" : "Shell cached"}
+          tone={updateReady ? "pending" : "synced"}
+        />
+      </div>
+      <p className="text-sm leading-6 text-on-surface/75">
+        Installability stays intact in this slice, but trip creation now comes first so organisers can set up a budget even before network access is reliable.
+      </p>
+      <button
+        className="min-h-14 rounded-2xl bg-secondary-container px-5 py-4 text-left text-base font-semibold text-on-secondary-container transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+        onClick={handleInstallClick}
+        disabled={!canInstall}
+        type="button"
+      >
+        {isInstalled
+          ? "Installed on this device"
+          : canInstall
+            ? "Install TripLedger"
+            : "Use browser menu to install"}
+      </button>
+    </div>
+  );
+}
+
 export function AppShell() {
   const {
     appVersion,
@@ -68,11 +134,28 @@ export function AppShell() {
     setOnlineStatus,
     setPersistedSyncStatus,
   } = useShellStore();
+  const {
+    activeTrip,
+    draft,
+    errors,
+    touchedFields,
+    isHydrating,
+    isSaving,
+    saveError,
+    setActiveTrip,
+    setDraftField,
+    setErrors,
+    setHydrating,
+    setSaveError,
+    setSaving,
+    touchField,
+    resetDraft,
+  } = useTripStore();
 
   const syncStatus = getSyncStatusViewModel(isOnline, persistedSyncStatus);
 
   useEffect(() => {
-    tripLedgerDb.appMeta.put({
+    void tripLedgerDb.appMeta.put({
       key: "shellVersion",
       value: appVersion,
     });
@@ -98,10 +181,7 @@ export function AppShell() {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       window.removeEventListener("appinstalled", handleInstalled);
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt,
-      );
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     };
   }, [appVersion, markInstalled, setInstallPrompt, setOnlineStatus]);
 
@@ -114,26 +194,75 @@ export function AppShell() {
       }
     });
 
+    void getLatestActiveTrip().then((trip) => {
+      if (!cancelled) {
+        setActiveTrip(trip);
+        setHydrating(false);
+      }
+    });
+
     return () => {
       cancelled = true;
     };
-  }, [setPersistedSyncStatus]);
+  }, [setActiveTrip, setHydrating, setPersistedSyncStatus]);
 
-  async function handleInstallClick() {
-    if (!deferredInstallPrompt) {
-      return;
+  function handleFieldChange(field: keyof typeof draft, value: string) {
+    const nextDraft = {
+      ...draft,
+      [field]: value,
+    };
+
+    setDraftField(field, value);
+    if (touchedFields[field]) {
+      setErrors(validateTripDraft(nextDraft));
     }
-
-    await deferredInstallPrompt.prompt();
-    const choice = await deferredInstallPrompt.userChoice;
-
-    if (choice.outcome === "accepted") {
-      markInstalled();
-      return;
+    if (saveError) {
+      setSaveError(null);
     }
-
-    setInstallPrompt(null);
   }
+
+  function handleFieldBlur(field: keyof typeof draft) {
+    touchField(field);
+    setErrors(validateTripDraft(draft));
+  }
+
+  async function handleCreateTrip() {
+    const nextErrors = validateTripDraft(draft);
+    setErrors(nextErrors);
+    touchField("name");
+    touchField("startDate");
+    touchField("endDate");
+    touchField("totalBudget");
+
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      const trip = await createTrip(draft);
+      setActiveTrip(trip);
+      resetDraft();
+      setPersistedSyncStatus(await readPersistedSyncStatus());
+    } catch {
+      setSaveError("Trip setup could not be saved locally. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const installAction = (
+    <InstallCard
+      canInstall={canInstall}
+      deferredInstallPrompt={deferredInstallPrompt}
+      isInstalled={isInstalled}
+      markInstalled={markInstalled}
+      setInstallPrompt={setInstallPrompt}
+      updateReady={updateReady}
+    />
+  );
 
   return (
     <main className="min-h-dvh bg-surface px-6 pb-8 pt-6 text-on-surface">
@@ -154,104 +283,30 @@ export function AppShell() {
           </div>
         ) : null}
 
-        <header className="rounded-3xl bg-surface-container-low px-6 py-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-2">
-              <p className="font-body text-sm font-semibold uppercase tracking-[0.24em] text-primary/70">
-                TripLedger
-              </p>
-              <h1 className="font-headline text-4xl font-extrabold tracking-tight text-primary">
-                Install once.
-                <br />
-                Travel offline.
-              </h1>
-            </div>
-            <StatusPill label={syncStatus.label} tone={syncStatus.tone} />
-          </div>
-        </header>
+        {isHydrating ? null : activeTrip ? (
+          <TripSummaryScreen
+            installAction={installAction}
+            syncStatus={syncStatus}
+            trip={activeTrip}
+          />
+        ) : (
+          <CreateTripScreen
+            draft={draft}
+            errors={errors}
+            installAction={installAction}
+            isSaving={isSaving}
+            onBlur={handleFieldBlur}
+            onChange={handleFieldChange}
+            onSubmit={handleCreateTrip}
+            saveError={saveError}
+            syncStatus={syncStatus}
+            touchedFields={touchedFields}
+          />
+        )}
 
-        <section className="overflow-hidden rounded-3xl bg-hero-gradient p-6 text-on-primary shadow-ambient">
-          <div className="space-y-3">
-            <p className="font-body text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
-              Home-screen ready
-            </p>
-            <p className="font-headline text-3xl font-bold tracking-tight">
-              Launch TripLedger like a native travel tool without app-store
-              friction.
-            </p>
-            <p className="max-w-sm text-sm leading-6 text-white/80">
-              The app shell is cached for offline launch, and new deployments
-              refresh through the service worker when an update is available.
-            </p>
-          </div>
-        </section>
-
-        <section className="rounded-3xl bg-surface-container-lowest p-6 shadow-ambient">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-body text-sm font-semibold uppercase tracking-[0.2em] text-primary/70">
-                  Ledger safety
-                </p>
-                <h2 className="font-headline text-2xl font-bold tracking-tight text-primary">
-                  {syncStatus.label}
-                </h2>
-              </div>
-              <StatusPill label={syncStatus.meta} tone={syncStatus.tone} />
-            </div>
-
-            <div className="rounded-2xl bg-surface-container-low px-4 py-4">
-              <p className="text-sm leading-6 text-on-surface/80">
-                {syncStatus.detail}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-3xl bg-surface-container-lowest p-6 shadow-ambient">
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              <StatusPill
-                label={isInstalled ? "Installed" : "Browser"}
-                tone={isInstalled ? "synced" : "pending"}
-              />
-              <StatusPill
-                label={updateReady ? "Update ready" : "Shell cached"}
-                tone={updateReady ? "pending" : "synced"}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <h2 className="font-headline text-2xl font-bold tracking-tight text-primary">
-                Trip shell
-              </h2>
-              <p className="text-sm leading-6 text-on-surface/75">
-                No trips yet. Install the shell now so the next budget, expense,
-                and sync flows open from your home screen with standalone
-                launch behavior.
-              </p>
-            </div>
-
-            <div className="grid gap-3">
-              <button
-                className="min-h-14 rounded-2xl bg-secondary-container px-5 py-4 text-left text-base font-semibold text-on-secondary-container transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={handleInstallClick}
-                disabled={!canInstall}
-                type="button"
-              >
-                {isInstalled
-                  ? "Installed on this device"
-                  : canInstall
-                    ? "Install TripLedger"
-                    : "Use browser menu to install"}
-              </button>
-              <div className="rounded-2xl bg-surface-container-low px-4 py-4 text-sm leading-6 text-on-surface/75">
-                Version {appVersion}. Local-first foundation is ready for Dexie,
-                Zustand, and sync-safe app-shell updates.
-              </div>
-            </div>
-          </div>
-        </section>
+        <footer className="pb-24 text-center text-xs font-medium text-on-surface/60">
+          Version {appVersion}. Offline-first trip setup writes to Dexie before any sync path starts.
+        </footer>
       </div>
     </main>
   );

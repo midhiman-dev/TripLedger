@@ -26,7 +26,7 @@ export const defaultPersistedSyncStatus: PersistedSyncStatus = {
   lastSyncedAt: null,
 };
 
-const syncMetaKeys = {
+export const syncMetaKeys = {
   mode: "sync.mode",
   pendingCount: "sync.pendingCount",
   conflictCount: "sync.conflictCount",

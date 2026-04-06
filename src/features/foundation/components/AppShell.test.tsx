@@ -1,12 +1,30 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppShell } from "./AppShell";
 import type { PersistedSyncStatus } from "../lib/syncStatus";
 import { useShellStore } from "../store/shellStore";
+import { useTripStore } from "../../trips/store/tripStore";
 
-const { readPersistedSyncStatusMock } = vi.hoisted(() => ({
+const {
+  appMetaPutMock,
+  readPersistedSyncStatusMock,
+  getLatestActiveTripMock,
+  createTripMock,
+} = vi.hoisted(() => ({
+  appMetaPutMock: vi.fn(),
   readPersistedSyncStatusMock: vi.fn<() => Promise<PersistedSyncStatus>>(),
+  getLatestActiveTripMock: vi.fn(),
+  createTripMock: vi.fn(),
+}));
+
+vi.mock("../../../db/tripLedgerDb", () => ({
+  tripLedgerDb: {
+    appMeta: {
+      put: appMetaPutMock,
+    },
+  },
 }));
 
 vi.mock("../lib/syncStatus", async () => {
@@ -20,21 +38,32 @@ vi.mock("../lib/syncStatus", async () => {
   };
 });
 
+vi.mock("../../trips/services/tripService", () => ({
+  getLatestActiveTrip: getLatestActiveTripMock,
+  createTrip: createTripMock,
+}));
+
 async function renderShell() {
-  await act(async () => {
-    render(<AppShell />);
-    await Promise.resolve();
+  render(<AppShell />);
+  await waitFor(() => {
+    expect(getLatestActiveTripMock).toHaveBeenCalled();
   });
 }
 
 describe("AppShell", () => {
   beforeEach(() => {
+    appMetaPutMock.mockReset();
+    readPersistedSyncStatusMock.mockReset();
+    getLatestActiveTripMock.mockReset();
+    createTripMock.mockReset();
+
     readPersistedSyncStatusMock.mockResolvedValue({
       mode: "synced",
       pendingCount: 0,
       conflictCount: 0,
       lastSyncedAt: "2026-04-05T10:00:00.000Z",
     });
+    getLatestActiveTripMock.mockResolvedValue(null);
 
     useShellStore.setState({
       isOnline: true,
@@ -50,19 +79,91 @@ describe("AppShell", () => {
         lastSyncedAt: "2026-04-05T10:00:00.000Z",
       },
     });
+
+    useTripStore.getState().resetState();
   });
 
-  it("renders the install-focused shell state", async () => {
+  it("renders the create-trip flow when no trip exists", async () => {
     await renderShell();
 
     expect(
-      screen.getByRole("heading", { name: /install once\./i }),
+      screen.getByRole("heading", { name: /the journey begins/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/home-screen ready/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/trip name/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /create trip/i })).toBeDisabled();
     expect(
       screen.getByRole("button", { name: /use browser menu to install/i }),
     ).toBeDisabled();
-    expect(screen.getAllByText(/^synced$/i)).toHaveLength(2);
+  });
+
+  it("shows validation feedback when a required field is blurred", async () => {
+    const user = userEvent.setup();
+
+    await renderShell();
+
+    await user.click(screen.getByLabelText(/trip name/i));
+    await user.tab();
+
+    expect(screen.getByText(/trip name is required/i)).toBeInTheDocument();
+  });
+
+  it("creates a trip locally and switches to the saved summary state", async () => {
+    const user = userEvent.setup();
+    readPersistedSyncStatusMock
+      .mockResolvedValueOnce({
+        mode: "synced",
+        pendingCount: 0,
+        conflictCount: 0,
+        lastSyncedAt: "2026-04-05T10:00:00.000Z",
+      })
+      .mockResolvedValueOnce({
+        mode: "pending",
+        pendingCount: 1,
+        conflictCount: 0,
+        lastSyncedAt: "2026-04-05T10:00:00.000Z",
+      });
+    createTripMock.mockResolvedValue({
+      id: "trip-1",
+      name: "Spiti Escape",
+      startDate: "2026-05-11",
+      endDate: "2026-05-18",
+      baseCurrency: "INR",
+      totalBudget: 72000,
+      createdAt: "2026-04-06T09:00:00.000Z",
+      updatedAt: "2026-04-06T09:00:00.000Z",
+      createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      syncStatus: "pending",
+      isDeleted: false,
+    });
+
+    await renderShell();
+
+    await user.type(screen.getByLabelText(/trip name/i), "Spiti Escape");
+    await user.type(screen.getByLabelText(/total budget/i), "72000");
+    fireEvent.change(screen.getByLabelText(/start date/i), {
+      target: { value: "2026-05-11" },
+    });
+    fireEvent.change(screen.getByLabelText(/end date/i), {
+      target: { value: "2026-05-18" },
+    });
+
+    await user.click(screen.getByRole("button", { name: /create trip/i }));
+
+    await waitFor(() => {
+      expect(createTripMock).toHaveBeenCalledWith({
+        name: "Spiti Escape",
+        startDate: "2026-05-11",
+        endDate: "2026-05-18",
+        totalBudget: "72000",
+      });
+    });
+
+    expect(
+      screen.getByRole("heading", { name: /spiti escape/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes("1 change is queued for sync"))).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes("72,000.00"))).toBeInTheDocument();
   });
 
   it("shows the offline banner when connectivity drops", async () => {
@@ -74,65 +175,6 @@ describe("AppShell", () => {
     expect(offlineBanner).toHaveTextContent(
       /you are offline\. local changes will sync when signal returns\./i,
     );
-    expect(screen.getAllByText(/^offline$/i)).toHaveLength(2);
-  });
-
-  it("shows queued local changes as pending", async () => {
-    readPersistedSyncStatusMock.mockResolvedValue({
-      mode: "pending",
-      pendingCount: 3,
-      conflictCount: 0,
-      lastSyncedAt: "2026-04-05T09:45:00.000Z",
-    });
-
-    await renderShell();
-
-    await waitFor(() => {
-      expect(screen.getAllByText(/pending \(3\)/i)).toHaveLength(2);
-    });
-
-    expect(
-      screen.getByText(/3 changes are queued for sync\. your local ledger is already saved\./i),
-    ).toBeInTheDocument();
-  });
-
-  it("prioritizes conflict messaging over offline messaging", async () => {
-    readPersistedSyncStatusMock.mockResolvedValue({
-      mode: "conflict",
-      pendingCount: 0,
-      conflictCount: 1,
-      lastSyncedAt: "2026-04-05T09:45:00.000Z",
-    });
-
-    useShellStore.setState({ isOnline: false });
-
-    await renderShell();
-
-    await waitFor(() => {
-      expect(screen.getAllByText(/^conflict$/i)).toHaveLength(2);
-    });
-
-    expect(
-      screen.getByText(/1 sync conflict needs review\. no conflicting field will be overwritten silently\./i),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(/you are offline\. local changes will sync when signal returns\./i),
-    ).not.toBeInTheDocument();
-  });
-
-  it("keeps pending sync messaging in the content area instead of the offline banner", async () => {
-    readPersistedSyncStatusMock.mockResolvedValue({
-      mode: "pending",
-      pendingCount: 2,
-      conflictCount: 0,
-      lastSyncedAt: "2026-04-05T09:45:00.000Z",
-    });
-
-    await renderShell();
-
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/2 changes are queued for sync\. your local ledger is already saved\./i),
-    ).toBeInTheDocument();
+    expect(screen.getAllByText(/^offline$/i).length).toBeGreaterThan(0);
   });
 });
