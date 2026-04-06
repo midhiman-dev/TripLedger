@@ -263,6 +263,104 @@ describe("AppShell", () => {
     expect(screen.getByLabelText(/fuel budget/i)).toBeInTheDocument();
   });
 
+  it("shows per-category spent versus budget health cues on the dashboard", async () => {
+    getLatestActiveTripMock.mockResolvedValue(activeTrip);
+    getTripCategoriesMock.mockResolvedValue([
+      {
+        ...hydratedCategories[0],
+        id: "cat-fuel",
+        name: "Fuel",
+        budgetAmount: 12000,
+      },
+      {
+        ...hydratedCategories[0],
+        id: "cat-food",
+        name: "Food",
+        icon: "restaurant",
+        color: "#ea580c",
+        budgetAmount: 10000,
+      },
+      {
+        ...hydratedCategories[0],
+        id: "cat-stay",
+        name: "Stay",
+        icon: "hotel",
+        color: "#1d4ed8",
+        budgetAmount: 8000,
+      },
+    ]);
+    getTripExpensesMock.mockResolvedValue([
+      {
+        id: "expense-fuel",
+        tripId: "trip-join",
+        categoryId: "cat-fuel",
+        amount: 6000,
+        currency: "INR",
+        description: "Fuel stop",
+        location: "",
+        paidBy: "You",
+        loggedAt: "2026-04-06T10:12:00.000Z",
+        deviceId: "device-local",
+        createdAt: "2026-04-06T10:12:00.000Z",
+        updatedAt: "2026-04-06T10:12:00.000Z",
+        createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        syncStatus: "synced",
+        conflictData: null,
+        isDeleted: false,
+      },
+      {
+        id: "expense-food",
+        tripId: "trip-join",
+        categoryId: "cat-food",
+        amount: 8500,
+        currency: "INR",
+        description: "Food stop",
+        location: "",
+        paidBy: "You",
+        loggedAt: "2026-04-06T10:13:00.000Z",
+        deviceId: "device-local",
+        createdAt: "2026-04-06T10:13:00.000Z",
+        updatedAt: "2026-04-06T10:13:00.000Z",
+        createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        syncStatus: "synced",
+        conflictData: null,
+        isDeleted: false,
+      },
+      {
+        id: "expense-stay",
+        tripId: "trip-join",
+        categoryId: "cat-stay",
+        amount: 9200,
+        currency: "INR",
+        description: "Stay booking",
+        location: "",
+        paidBy: "You",
+        loggedAt: "2026-04-06T10:14:00.000Z",
+        deviceId: "device-local",
+        createdAt: "2026-04-06T10:14:00.000Z",
+        updatedAt: "2026-04-06T10:14:00.000Z",
+        createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        syncStatus: "synced",
+        conflictData: null,
+        isDeleted: false,
+      },
+    ]);
+
+    await renderShell();
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /himalayan mission/i })).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("heading", { name: /category budget health/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/fuel health/i)).toHaveTextContent(/50% used/i);
+    expect(screen.getByLabelText(/food health/i)).toHaveTextContent(/85% used/i);
+    expect(screen.getByLabelText(/stay health/i)).toHaveTextContent(/overspent by .*1,200/i);
+  });
+
   it("shows validation for incomplete trip codes", async () => {
     const user = userEvent.setup();
 

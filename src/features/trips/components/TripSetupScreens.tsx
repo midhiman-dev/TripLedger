@@ -439,6 +439,25 @@ export function TripSummaryScreen({
     watch: "bg-secondary-container",
     critical: "bg-red-500",
   };
+  const categorySummaryById = useMemo(
+    () => new Map(dashboardSummary.categorySummaries.map((summary) => [summary.categoryId, summary])),
+    [dashboardSummary.categorySummaries],
+  );
+  const categoryCardClasses = {
+    healthy: "rounded-3xl bg-surface-container-low p-5",
+    watch: "rounded-3xl bg-secondary-container/10 p-5",
+    critical: "rounded-3xl bg-error-container/40 p-5",
+  };
+  const categorySpentClasses = {
+    healthy: "text-primary",
+    watch: "text-secondary",
+    critical: "text-red-700",
+  };
+  const categoryIconShellClasses = {
+    healthy: "bg-surface-container-lowest",
+    watch: "bg-white/70",
+    critical: "bg-white/70",
+  };
 
   async function handleShareCode() {
     const shareText = buildTripShareText(trip.name, trip.tripCode);
@@ -627,25 +646,30 @@ export function TripSummaryScreen({
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">
-              Spending expectations
+              Category variance
             </p>
             <h2 className="font-headline text-2xl font-extrabold tracking-tight text-primary">
-              Default Categories
+              Category Budget Health
             </h2>
           </div>
           <div className="rounded-full bg-secondary-container/20 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary">
-            {categories.length} seeded
+            {categories.length} tracked
           </div>
         </div>
 
         <div className="space-y-4">
           {categories.map((category) => {
             const hasError = Boolean(categoryErrors[category.id]);
+            const categorySummary = categorySummaryById.get(category.id);
+            if (!categorySummary) {
+              return null;
+            }
+
             return (
-              <div className="rounded-3xl bg-surface-container-low p-5" key={category.id}>
+              <div className={categoryCardClasses[categorySummary.healthTone]} key={category.id}>
                 <div className="flex items-start gap-4">
                   <div
-                    className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-container-lowest"
+                    className={`flex h-14 w-14 items-center justify-center rounded-2xl ${categoryIconShellClasses[categorySummary.healthTone]}`}
                     style={{ color: category.color }}
                   >
                     <span className="material-symbols-outlined text-3xl">{category.icon}</span>
@@ -655,14 +679,47 @@ export function TripSummaryScreen({
                       <div>
                         <h3 className="font-headline text-xl font-bold text-primary">{category.name}</h3>
                         <p className="mt-1 text-sm text-on-surface/70">
-                          Set the category budget now and adjust it later as the trip plan changes.
+                          Allocated {formatTripBudget(categorySummary.budgetAmount, trip.baseCurrency)}
                         </p>
                       </div>
-                      {savingCategoryId === category.id ? (
-                        <span className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">
-                          Saving
+                      <div className="flex flex-col items-end gap-2">
+                        <span
+                          aria-label={`${category.name} health`}
+                          className={`rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${progressToneClasses[categorySummary.healthTone]}`}
+                        >
+                          {categorySummary.isOverspent
+                            ? `Overspent by ${formatCompactTripBudget(Math.abs(categorySummary.remainingAmount), trip.baseCurrency)}`
+                            : categorySummary.healthLabel}
                         </span>
-                      ) : null}
+                        {savingCategoryId === category.id ? (
+                          <span className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">
+                            Saving
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="mt-4 rounded-2xl bg-white/55 px-4 py-4">
+                      <div className="flex items-end justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-[0.18em] text-on-surface/55">
+                            Spent
+                          </p>
+                          <p className={`mt-2 font-headline text-2xl font-extrabold ${categorySpentClasses[categorySummary.healthTone]}`}>
+                            {formatTripBudget(categorySummary.spentAmount, trip.baseCurrency)}
+                          </p>
+                        </div>
+                        <p className="text-right text-xs font-semibold uppercase tracking-[0.16em] text-on-surface/60">
+                          {categorySummary.isOverspent
+                            ? `${formatTripBudget(Math.abs(categorySummary.remainingAmount), trip.baseCurrency)} over`
+                            : `${formatTripBudget(categorySummary.remainingAmount, trip.baseCurrency)} left`}
+                        </p>
+                      </div>
+                      <div className="mt-4 h-3 overflow-hidden rounded-full bg-surface-container-high">
+                        <div
+                          className={`h-full rounded-full ${progressBarClasses[categorySummary.healthTone]}`}
+                          style={{ width: `${categorySummary.progressPercent}%` }}
+                        ></div>
+                      </div>
                     </div>
                     <div className="mt-4 flex items-center gap-3 rounded-2xl bg-surface-container-lowest px-4 py-3">
                       <span className="font-headline text-lg font-bold text-primary">Rs</span>
