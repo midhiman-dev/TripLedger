@@ -264,11 +264,31 @@ describe("AppShell", () => {
     expect(joinTripByCodeMock).not.toHaveBeenCalled();
   });
 
-  it("logs a quick-add expense locally from the summary view", async () => {
+  it("shows the new expense immediately at the top of recent activity with a local pending state", async () => {
     const user = userEvent.setup();
     getLatestActiveTripMock.mockResolvedValue(activeTrip);
     getTripCategoriesMock.mockResolvedValue(hydratedCategories);
-    getTripExpensesMock.mockResolvedValue([]);
+    getTripExpensesMock.mockResolvedValue([
+      {
+        id: "expense-older",
+        tripId: "trip-join",
+        categoryId: "cat-fuel",
+        amount: 900,
+        currency: "INR",
+        description: "Older fuel stop",
+        location: "Kullu",
+        paidBy: "You",
+        loggedAt: "2026-04-06T08:12:00.000Z",
+        deviceId: "device-local",
+        createdAt: "2026-04-06T08:12:00.000Z",
+        updatedAt: "2026-04-06T08:12:00.000Z",
+        createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        syncStatus: "synced",
+        conflictData: null,
+        isDeleted: false,
+      },
+    ]);
     readPersistedSyncStatusMock
       .mockResolvedValueOnce({
         mode: "pending",
@@ -324,7 +344,11 @@ describe("AppShell", () => {
       );
     });
 
+    const recentExpenseCards = screen.getAllByTestId("recent-expense-card");
+    expect(recentExpenseCards[0]).toHaveTextContent(/fuel stop/i);
+    expect(recentExpenseCards[0]).toHaveTextContent(/local pending/i);
+    expect(recentExpenseCards[1]).toHaveTextContent(/older fuel stop/i);
     expect(screen.getByText(/expense added locally/i)).toBeInTheDocument();
-    expect(screen.getByText(/fuel stop/i)).toBeInTheDocument();
   });
 });
+
