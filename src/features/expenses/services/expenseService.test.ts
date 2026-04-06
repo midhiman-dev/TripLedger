@@ -36,7 +36,7 @@ vi.mock("../../../db/tripLedgerDb", () => ({
   },
 }));
 
-import { createExpense, getTripExpenses, updateExpense } from "./expenseService";
+import { createExpense, deleteExpense, getTripExpenses, restoreExpense, updateExpense } from "./expenseService";
 
 describe("expenseService", () => {
   beforeEach(() => {
@@ -126,6 +126,56 @@ describe("expenseService", () => {
     expect(syncLogPutMock).toHaveBeenCalledWith(expect.objectContaining({ entityType: "expense", action: "update" }));
   });
 
+  it("soft deletes an expense and can restore it for undo", async () => {
+    expensesGetMock
+      .mockResolvedValueOnce({
+        id: "expense-1",
+        tripId: "trip-1",
+        categoryId: "cat-fuel",
+        amount: 1250,
+        currency: "INR",
+        description: "Fuel stop",
+        location: "NH-44",
+        paidBy: "You",
+        loggedAt: "2026-04-06T10:12:00.000Z",
+        deviceId: "device-local",
+        createdAt: "2026-04-06T10:12:00.000Z",
+        updatedAt: "2026-04-06T10:12:00.000Z",
+        createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        syncStatus: "synced",
+        conflictData: null,
+        isDeleted: false,
+      })
+      .mockResolvedValueOnce({
+        id: "expense-1",
+        tripId: "trip-1",
+        categoryId: "cat-fuel",
+        amount: 1250,
+        currency: "INR",
+        description: "Fuel stop",
+        location: "NH-44",
+        paidBy: "You",
+        loggedAt: "2026-04-06T10:12:00.000Z",
+        deviceId: "device-local",
+        createdAt: "2026-04-06T10:12:00.000Z",
+        updatedAt: "2026-04-06T10:13:00.000Z",
+        createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        updatedAtHlc: { wallClock: 2, logical: 0, nodeId: "device-local" },
+        syncStatus: "pending",
+        conflictData: null,
+        isDeleted: true,
+      });
+
+    const deletedExpense = await deleteExpense("expense-1");
+    const restoredExpense = await restoreExpense("expense-1");
+
+    expect(deletedExpense.isDeleted).toBe(true);
+    expect(restoredExpense.isDeleted).toBe(false);
+    expect(syncLogPutMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ entityType: "expense", action: "delete" }));
+    expect(syncLogPutMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ entityType: "expense", action: "update" }));
+  });
+
   it("returns non-deleted expenses for a trip in reverse logged order", async () => {
     expensesWhereEqualsMock.mockReturnValue({
       toArray: vi.fn().mockResolvedValue([
@@ -141,4 +191,3 @@ describe("expenseService", () => {
     ]);
   });
 });
-

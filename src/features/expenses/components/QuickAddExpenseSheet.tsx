@@ -18,6 +18,7 @@ type QuickAddExpenseSheetProps = {
   isSaving: boolean;
   mode?: "create" | "edit";
   onClose: () => void;
+  onDelete?: () => Promise<void>;
   onSubmit: (input: ExpenseSheetSubmitInput) => Promise<void>;
 };
 
@@ -37,6 +38,7 @@ export function QuickAddExpenseSheet({
   isSaving,
   mode = "create",
   onClose,
+  onDelete,
   onSubmit,
 }: QuickAddExpenseSheetProps) {
   const [categoryId, setCategoryId] = useState("");
@@ -79,23 +81,18 @@ export function QuickAddExpenseSheet({
     setPaidBy("");
     setShowMoreDetails(false);
     setShowAmountError(false);
-  }, [
-    editingExpense,
-    isOpen,
-    mode,
-  ]);
+  }, [editingExpense, isOpen, mode]);
 
   const parsedAmount = useMemo(() => Number.parseFloat(amount.replace(/,/g, "")), [amount]);
   const amountValid = Number.isFinite(parsedAmount) && parsedAmount > 0;
   const canSubmit = Boolean(categoryId) && amountValid && !isSaving;
+  const canDelete = mode === "edit" && Boolean(editingExpense) && !isSaving && Boolean(onDelete);
   const currencyPrefix = formatCurrencyPrefix(currency);
   const moreDetailsId = "quick-add-more-details";
   const sheetEyebrow = mode === "edit" ? "Recent activity" : "Quick Add";
   const sheetTitle = mode === "edit" ? "Edit Expense" : "Quick Add Expense";
   const submitLabel = isSaving
-    ? mode === "edit"
-      ? "Saving locally..."
-      : "Saving locally..."
+    ? "Saving locally..."
     : mode === "edit"
       ? "Save Changes"
       : "Add Expense";
@@ -253,14 +250,39 @@ export function QuickAddExpenseSheet({
             ) : null}
           </div>
 
-          <button
-            className="min-h-14 w-full rounded-2xl bg-primary px-5 py-4 text-base font-bold text-on-primary shadow-ambient transition disabled:cursor-not-allowed disabled:bg-surface-variant disabled:text-outline"
-            disabled={!canSubmit}
-            onClick={() => void handleSubmit()}
-            type="button"
-          >
-            {submitLabel}
-          </button>
+          {mode === "edit" ? (
+            <div className="flex gap-3">
+              <button
+                className="min-h-14 flex-1 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-base font-bold text-red-700 transition disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={!canDelete}
+                onClick={() => {
+                  if (onDelete) {
+                    void onDelete();
+                  }
+                }}
+                type="button"
+              >
+                Delete Expense
+              </button>
+              <button
+                className="min-h-14 flex-[1.4] rounded-2xl bg-primary px-5 py-4 text-base font-bold text-on-primary shadow-ambient transition disabled:cursor-not-allowed disabled:bg-surface-variant disabled:text-outline"
+                disabled={!canSubmit}
+                onClick={() => void handleSubmit()}
+                type="button"
+              >
+                {submitLabel}
+              </button>
+            </div>
+          ) : (
+            <button
+              className="min-h-14 w-full rounded-2xl bg-primary px-5 py-4 text-base font-bold text-on-primary shadow-ambient transition disabled:cursor-not-allowed disabled:bg-surface-variant disabled:text-outline"
+              disabled={!canSubmit}
+              onClick={() => void handleSubmit()}
+              type="button"
+            >
+              {submitLabel}
+            </button>
+          )}
         </div>
       </section>
     </div>

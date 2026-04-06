@@ -79,7 +79,7 @@ export type JoinRequestRecord = {
 
 export type SyncLogRecord = {
   id: string;
-  action: "create" | "update" | "join";
+  action: "create" | "update" | "delete" | "join";
   entityType: "trip" | "category" | "expense" | "joinRequest";
   recordId: string;
   timestamp: string;
@@ -147,4 +147,3 @@ class TripLedgerDb extends Dexie {
 }
 
 export const tripLedgerDb = new TripLedgerDb();
-

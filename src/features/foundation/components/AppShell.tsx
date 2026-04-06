@@ -16,7 +16,13 @@ import { createTrip, getLatestActiveTrip, getTripCategories } from "../../trips/
 import { useTripStore } from "../../trips/store/tripStore";
 import { updateCategoryBudget } from "../../categories/services/categoryService";
 import { QuickAddExpenseSheet } from "../../expenses/components/QuickAddExpenseSheet";
-import { createExpense, getTripExpenses, updateExpense } from "../../expenses/services/expenseService";
+import {
+  createExpense,
+  deleteExpense,
+  getTripExpenses,
+  restoreExpense,
+  updateExpense,
+} from "../../expenses/services/expenseService";
 
 function StatusPill({
   label,
@@ -49,6 +55,23 @@ function StatusPill({
       {label}
     </span>
   );
+}
+
+function formatDeviceLabel(deviceId: string) {
+  if (!deviceId || deviceId === "device-local") {
+    return "this device";
+  }
+
+  const compactId = deviceId.length > 10 ? deviceId.slice(0, 8) : deviceId;
+  return `device ${compactId}`;
+}
+
+function formatExpenseLogger(expense: ExpenseRecord) {
+  if (expense.paidBy && expense.paidBy !== "You") {
+    return `Logged by ${expense.paidBy}`;
+  }
+
+  return `Logged on ${formatDeviceLabel(expense.deviceId)}`;
 }
 
 function OfflineBanner({ message }: { message: string }) {
@@ -225,6 +248,9 @@ function RecentExpensesSection({
                             </>
                           ) : null}
                         </div>
+                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-on-surface/55">
+                          {formatExpenseLogger(expense)}
+                        </p>
                       </div>
                       <div className="text-right">
                         <p className={isPending ? "font-headline text-lg font-bold text-secondary" : "font-headline text-lg font-bold text-primary"}>
@@ -361,6 +387,7 @@ export function AppShell() {
     setExpenses,
     prependExpense,
     replaceExpense,
+    removeExpense,
     setCategoryBudgetDraft,
     setCategoryError,
     setSavingCategoryId,
@@ -381,6 +408,7 @@ export function AppShell() {
   const [isSavingExpense, setSavingExpense] = useState(false);
   const [editingExpense, setEditingExpense] = useState<ExpenseRecord | null>(null);
   const [expenseFeedback, setExpenseFeedback] = useState<string | null>(null);
+  const [undoExpense, setUndoExpense] = useState<ExpenseRecord | null>(null);
   const [startupRecoveryMessage, setStartupRecoveryMessage] = useState<string | null>(null);
 
   const syncStatus = getSyncStatusViewModel(isOnline, persistedSyncStatus);
@@ -484,6 +512,18 @@ export function AppShell() {
 
     return () => window.clearTimeout(timeoutId);
   }, [expenseFeedback]);
+
+  useEffect(() => {
+    if (!undoExpense) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setUndoExpense(null);
+    }, 5000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [undoExpense]);
 
   function handleFieldChange(field: keyof typeof draft, value: string) {
     const nextDraft = {
@@ -671,7 +711,46 @@ export function AppShell() {
         setExpenseFeedback("Expense added locally");
       }
 
+      setUndoExpense(null);
       closeExpenseSheet();
+      setPersistedSyncStatus(await readPersistedSyncStatus());
+    } finally {
+      setSavingExpense(false);
+    }
+  }
+
+  async function handleDeleteExpense() {
+    if (!editingExpense) {
+      return;
+    }
+
+    setSavingExpense(true);
+
+    try {
+      const deletedExpense = await deleteExpense(editingExpense.id);
+      removeExpense(editingExpense.id);
+      setExpenseFeedback(null);
+      setUndoExpense(deletedExpense);
+      closeExpenseSheet();
+      setPersistedSyncStatus(await readPersistedSyncStatus());
+    } finally {
+      setSavingExpense(false);
+    }
+  }
+
+  async function handleUndoDelete() {
+    if (!undoExpense) {
+      return;
+    }
+
+    const expenseId = undoExpense.id;
+    setSavingExpense(true);
+
+    try {
+      const restoredExpense = await restoreExpense(expenseId);
+      replaceExpense(restoredExpense);
+      setUndoExpense(null);
+      setExpenseFeedback("Expense restored locally");
       setPersistedSyncStatus(await readPersistedSyncStatus());
     } finally {
       setSavingExpense(false);
@@ -779,7 +858,24 @@ export function AppShell() {
         </button>
       ) : null}
 
-      {expenseFeedback ? (
+      {undoExpense ? (
+        <div className="fixed bottom-24 left-1/2 z-[70] w-[90%] max-w-sm -translate-x-1/2">
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-inverse-surface px-4 py-3 text-inverse-on-surface shadow-2xl">
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[#61de8a]">delete</span>
+              <p className="font-headline text-sm font-bold">Expense deleted</p>
+            </div>
+            <button
+              className="rounded-xl px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#7efba4] transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isSavingExpense}
+              onClick={() => void handleUndoDelete()}
+              type="button"
+            >
+              Undo
+            </button>
+          </div>
+        </div>
+      ) : expenseFeedback ? (
         <div className="fixed bottom-24 left-1/2 z-[70] w-[90%] max-w-sm -translate-x-1/2">
           <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#36b96a]/10 bg-[#7efba4] px-4 py-3 text-[#00210c] shadow-2xl">
             <div className="flex items-center gap-3">
@@ -803,6 +899,7 @@ export function AppShell() {
         isSaving={isSavingExpense}
         mode={editingExpense ? "edit" : "create"}
         onClose={closeExpenseSheet}
+        onDelete={editingExpense ? handleDeleteExpense : undefined}
         onSubmit={handleExpenseSubmit}
       />
     </>

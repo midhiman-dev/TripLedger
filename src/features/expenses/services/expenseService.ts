@@ -45,6 +45,41 @@ async function assertCategoryBelongsToTrip(categoryId: string, tripId: string) {
   return category;
 }
 
+async function persistExpenseMutation({
+  expense,
+  action,
+  fields,
+}: {
+  expense: ExpenseRecord;
+  action: "create" | "update" | "delete";
+  fields: string[];
+}) {
+  const timestamp = expense.updatedAt;
+
+  await tripLedgerDb.transaction(
+    "rw",
+    tripLedgerDb.expenses,
+    tripLedgerDb.syncLog,
+    tripLedgerDb.appMeta,
+    async () => {
+      await tripLedgerDb.expenses.put(expense);
+      await tripLedgerDb.syncLog.put({
+        id: crypto.randomUUID(),
+        action,
+        entityType: "expense",
+        recordId: expense.id,
+        timestamp,
+        details: JSON.stringify({
+          entityType: "expense",
+          tripId: expense.tripId,
+          fields,
+        }),
+      });
+      await incrementPendingSync();
+    },
+  );
+}
+
 export async function getTripExpenses(tripId: string): Promise<ExpenseRecord[]> {
   const expenses = await tripLedgerDb.expenses.where("tripId").equals(tripId).toArray();
 
@@ -83,28 +118,11 @@ export async function createExpense(input: CreateExpenseInput): Promise<ExpenseR
     isDeleted: false,
   };
 
-  await tripLedgerDb.transaction(
-    "rw",
-    tripLedgerDb.expenses,
-    tripLedgerDb.syncLog,
-    tripLedgerDb.appMeta,
-    async () => {
-      await tripLedgerDb.expenses.put(expense);
-      await tripLedgerDb.syncLog.put({
-        id: crypto.randomUUID(),
-        action: "create",
-        entityType: "expense",
-        recordId: expense.id,
-        timestamp,
-        details: JSON.stringify({
-          entityType: "expense",
-          tripId: expense.tripId,
-          fields: ["categoryId", "amount", "description", "location", "paidBy", "loggedAt"],
-        }),
-      });
-      await incrementPendingSync();
-    },
-  );
+  await persistExpenseMutation({
+    expense,
+    action: "create",
+    fields: ["categoryId", "amount", "description", "location", "paidBy", "loggedAt"],
+  });
 
   return expense;
 }
@@ -137,28 +155,57 @@ export async function updateExpense(input: UpdateExpenseInput): Promise<ExpenseR
     syncStatus: "pending",
   };
 
-  await tripLedgerDb.transaction(
-    "rw",
-    tripLedgerDb.expenses,
-    tripLedgerDb.syncLog,
-    tripLedgerDb.appMeta,
-    async () => {
-      await tripLedgerDb.expenses.put(nextExpense);
-      await tripLedgerDb.syncLog.put({
-        id: crypto.randomUUID(),
-        action: "update",
-        entityType: "expense",
-        recordId: expense.id,
-        timestamp,
-        details: JSON.stringify({
-          entityType: "expense",
-          tripId: expense.tripId,
-          fields: ["categoryId", "amount", "description", "location", "paidBy", "loggedAt"],
-        }),
-      });
-      await incrementPendingSync();
-    },
-  );
+  await persistExpenseMutation({
+    expense: nextExpense,
+    action: "update",
+    fields: ["categoryId", "amount", "description", "location", "paidBy", "loggedAt"],
+  });
 
   return nextExpense;
+}
+
+export async function deleteExpense(expenseId: string): Promise<ExpenseRecord> {
+  const expense = await tripLedgerDb.expenses.get(expenseId);
+  if (!expense || expense.isDeleted) {
+    throw new Error("Expense not found");
+  }
+
+  const deletedExpense: ExpenseRecord = {
+    ...expense,
+    isDeleted: true,
+    updatedAt: new Date().toISOString(),
+    updatedAtHlc: createHlc(),
+    syncStatus: "pending",
+  };
+
+  await persistExpenseMutation({
+    expense: deletedExpense,
+    action: "delete",
+    fields: ["isDeleted"],
+  });
+
+  return deletedExpense;
+}
+
+export async function restoreExpense(expenseId: string): Promise<ExpenseRecord> {
+  const expense = await tripLedgerDb.expenses.get(expenseId);
+  if (!expense || !expense.isDeleted) {
+    throw new Error("Expense not found for undo");
+  }
+
+  const restoredExpense: ExpenseRecord = {
+    ...expense,
+    isDeleted: false,
+    updatedAt: new Date().toISOString(),
+    updatedAtHlc: createHlc(),
+    syncStatus: "pending",
+  };
+
+  await persistExpenseMutation({
+    expense: restoredExpense,
+    action: "update",
+    fields: ["isDeleted"],
+  });
+
+  return restoredExpense;
 }

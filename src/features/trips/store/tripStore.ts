@@ -43,6 +43,7 @@ type TripStore = {
   setExpenses: (expenses: ExpenseRecord[]) => void;
   prependExpense: (expense: ExpenseRecord) => void;
   replaceExpense: (expense: ExpenseRecord) => void;
+  removeExpense: (expenseId: string) => void;
   setCategoryBudgetDraft: (categoryId: string, value: string) => void;
   setCategoryError: (categoryId: string, message?: string) => void;
   setSavingCategoryId: (categoryId: string | null) => void;
@@ -136,6 +137,10 @@ export const useTripStore = create<TripStore>((set) => ({
           ? state.expenses.map((item) => (item.id === expense.id ? expense : item))
           : [expense, ...state.expenses],
       ),
+    })),
+  removeExpense: (expenseId) =>
+    set((state) => ({
+      expenses: state.expenses.filter((item) => item.id !== expenseId),
     })),
   setCategoryBudgetDraft: (categoryId, value) =>
     set((state) => ({

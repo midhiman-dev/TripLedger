@@ -21,6 +21,26 @@ const categories = [
   },
 ];
 
+const editingExpense = {
+  id: "expense-1",
+  tripId: "trip-1",
+  categoryId: "cat-fuel",
+  amount: 450,
+  currency: "INR",
+  description: "Dinner stop",
+  location: "Manali",
+  paidBy: "Riya",
+  loggedAt: "2026-04-06T10:12:00.000Z",
+  deviceId: "device-local",
+  createdAt: "2026-04-06T10:12:00.000Z",
+  updatedAt: "2026-04-06T10:12:00.000Z",
+  createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+  updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+  syncStatus: "pending" as const,
+  conflictData: null,
+  isDeleted: false,
+};
+
 describe("QuickAddExpenseSheet", () => {
   it("keeps optional fields behind the more-details affordance by default", () => {
     render(
@@ -84,25 +104,7 @@ describe("QuickAddExpenseSheet", () => {
       <QuickAddExpenseSheet
         categories={categories}
         currency="INR"
-        editingExpense={{
-          id: "expense-1",
-          tripId: "trip-1",
-          categoryId: "cat-fuel",
-          amount: 450,
-          currency: "INR",
-          description: "Dinner stop",
-          location: "Manali",
-          paidBy: "Riya",
-          loggedAt: "2026-04-06T10:12:00.000Z",
-          deviceId: "device-local",
-          createdAt: "2026-04-06T10:12:00.000Z",
-          updatedAt: "2026-04-06T10:12:00.000Z",
-          createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
-          updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
-          syncStatus: "pending",
-          conflictData: null,
-          isDeleted: false,
-        }}
+        editingExpense={editingExpense}
         isOpen
         isSaving={false}
         mode="edit"
@@ -131,5 +133,28 @@ describe("QuickAddExpenseSheet", () => {
       location: "Manali",
       paidBy: "Riya",
     });
+  });
+
+  it("shows a delete action in edit mode", async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <QuickAddExpenseSheet
+        categories={categories}
+        currency="INR"
+        editingExpense={editingExpense}
+        isOpen
+        isSaving={false}
+        mode="edit"
+        onClose={vi.fn()}
+        onDelete={onDelete}
+        onSubmit={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /delete expense/i }));
+
+    expect(onDelete).toHaveBeenCalled();
   });
 });
