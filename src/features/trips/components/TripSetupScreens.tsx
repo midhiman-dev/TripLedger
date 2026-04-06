@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 
 import type { CategoryRecord, TripRecord } from "../../../db/tripLedgerDb";
 import type { SyncStatusViewModel } from "../../foundation/lib/syncStatus";
-import { buildTripShareText } from "../lib/tripCode";
+import { buildTripShareText, formatTripCode } from "../lib/tripCode";
 import {
   validateTripDraft,
   type TripDraft,
@@ -19,8 +19,23 @@ type CreateTripScreenProps = {
   onChange: (field: TripField, value: string) => void;
   onBlur: (field: TripField) => void;
   onSubmit: () => void;
+  onOpenJoin: () => void;
   installAction: ReactNode;
   syncStatus: SyncStatusViewModel;
+};
+
+type JoinTripScreenProps = {
+  joinCodeDraft: string;
+  joinCodeError: string | null;
+  joinFeedback: {
+    tone: "queued" | "hydrated";
+    title: string;
+    detail: string;
+  } | null;
+  isJoining: boolean;
+  onCodeChange: (value: string) => void;
+  onSubmit: () => void;
+  onClose: () => void;
 };
 
 type TripSummaryProps = {
@@ -99,6 +114,7 @@ export function CreateTripScreen({
   onChange,
   onBlur,
   onSubmit,
+  onOpenJoin,
   installAction,
   syncStatus,
 }: CreateTripScreenProps) {
@@ -234,16 +250,152 @@ export function CreateTripScreen({
       </section>
 
       <div className="sticky bottom-0 z-40 -mx-6 mt-auto bg-white/75 px-6 pb-6 pt-4 backdrop-blur-2xl">
+        <div className="grid gap-3">
+          <button
+            className="min-h-14 w-full rounded-2xl bg-primary px-5 py-4 text-base font-bold text-on-primary shadow-ambient transition disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+            disabled={!isFormValid || isSaving}
+            onClick={onSubmit}
+            type="button"
+          >
+            {isSaving ? "Saving locally..." : "Create Trip"}
+          </button>
+          <button
+            className="min-h-14 w-full rounded-2xl bg-secondary-container px-5 py-4 text-base font-bold text-on-secondary-container transition hover:brightness-105"
+            onClick={onOpenJoin}
+            type="button"
+          >
+            Enter Trip Code
+          </button>
+        </div>
+        <p className="mt-4 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-outline">
+          Step 1 of 1: Financial starting point
+        </p>
+      </div>
+    </>
+  );
+}
+
+export function JoinTripScreen({
+  joinCodeDraft,
+  joinCodeError,
+  joinFeedback,
+  isJoining,
+  onCodeChange,
+  onSubmit,
+  onClose,
+}: JoinTripScreenProps) {
+  const formattedCode = formatTripCode(joinCodeDraft);
+  const codeCells = formattedCode.replace("-", "").padEnd(6, "_").split("");
+
+  return (
+    <>
+      <header className="rounded-3xl bg-surface-container-low px-6 py-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <button className="text-slate-500 transition active:scale-95" onClick={onClose} type="button">
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            <div>
+              <p className="font-body text-sm font-semibold uppercase tracking-[0.24em] text-primary/70">
+                TripLedger
+              </p>
+              <h1 className="font-headline text-3xl font-extrabold tracking-tight text-primary">
+                Join a Trip
+              </h1>
+            </div>
+          </div>
+          <div className="rounded-full bg-surface-container-lowest px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-outline ring-1 ring-outline/10">
+            Offline Ready
+          </div>
+        </div>
+      </header>
+
+      <section className="rounded-3xl bg-surface-container-lowest p-6 shadow-ambient">
+        <div className="space-y-6">
+          <div>
+            <h2 className="font-headline text-3xl font-extrabold tracking-tight text-primary">
+              Enter Invite Code
+            </h2>
+            <p className="mt-3 max-w-md text-base text-on-surface/70">
+              Connect with your travel group even while deep in the mountains.
+            </p>
+          </div>
+
+          <div className="rounded-3xl bg-surface-container-low p-5">
+            <label className="mb-4 block text-xs font-bold uppercase tracking-[0.18em] text-outline">
+              6-Character Code
+            </label>
+            <input
+              aria-label="Trip Code"
+              autoCapitalize="characters"
+              className="mb-5 w-full rounded-2xl bg-surface-container-lowest px-4 py-4 text-lg font-semibold tracking-[0.3em] text-primary focus:ring-2 focus:ring-secondary/30"
+              inputMode="text"
+              maxLength={7}
+              onChange={(event) => onCodeChange(event.target.value)}
+              placeholder="ABC-123"
+              type="text"
+              value={formattedCode}
+            />
+            <div className="mb-4 flex items-center gap-2">
+              {codeCells.slice(0, 3).map((character, index) => (
+                <div className="flex-1 rounded-xl bg-surface-container-lowest py-4 text-center font-headline text-2xl font-bold text-primary" key={`left-${index}`}>
+                  {character}
+                </div>
+              ))}
+              <div className="mx-1 h-1 w-4 rounded-full bg-outline-variant"></div>
+              {codeCells.slice(3).map((character, index) => (
+                <div className="flex-1 rounded-xl bg-surface-container-lowest py-4 text-center font-headline text-2xl font-bold text-primary" key={`right-${index}`}>
+                  {character}
+                </div>
+              ))}
+            </div>
+            <FieldError message={joinCodeError ?? undefined} />
+
+            {joinFeedback ? (
+              <div className="mt-5 flex items-center gap-4 rounded-2xl bg-[#e1e0ff]/40 p-5 text-primary">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-container text-white">
+                  <span className="material-symbols-outlined">
+                    {joinFeedback.tone === "hydrated" ? "cloud_done" : "schedule"}
+                  </span>
+                </div>
+                <div>
+                  <p className="font-headline font-bold leading-tight">{joinFeedback.title}</p>
+                  <p className="mt-1 text-sm text-on-surface/70">{joinFeedback.detail}</p>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-3xl bg-surface-container-low p-5">
+              <span className="material-symbols-outlined mb-3 text-secondary">travel_explore</span>
+              <h3 className="font-headline text-lg font-bold text-primary">Smart Syncing</h3>
+              <p className="mt-2 text-sm leading-6 text-on-surface/70">
+                TripLedger caches your request. As soon as signal returns, the join can complete safely.
+              </p>
+            </div>
+            <div className="rounded-3xl bg-surface-container-low p-5">
+              <span className="material-symbols-outlined mb-3 text-primary">group</span>
+              <h3 className="font-headline text-lg font-bold text-primary">First Sync Snapshot</h3>
+              <p className="mt-2 text-sm leading-6 text-on-surface/70">
+                When a matching snapshot is available, the device starts with the full trip context instead of an empty shell.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="sticky bottom-0 z-40 -mx-6 mt-auto bg-white/75 px-6 pb-6 pt-4 backdrop-blur-2xl">
         <button
           className="min-h-14 w-full rounded-2xl bg-primary px-5 py-4 text-base font-bold text-on-primary shadow-ambient transition disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
-          disabled={!isFormValid || isSaving}
+          disabled={isJoining}
           onClick={onSubmit}
           type="button"
         >
-          {isSaving ? "Saving locally..." : "Create Trip"}
+          {isJoining ? "Queueing Join..." : "Join with Code"}
         </button>
         <p className="mt-4 text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-outline">
-          Step 1 of 1: Financial starting point
+          Code entry tracked locally first
         </p>
       </div>
     </>
@@ -275,7 +427,6 @@ export function TripSummaryScreen({
         setShareFeedback("Invite ready to send.");
         return;
       } catch {
-        // Fall through to clipboard for desktop and unsupported share targets.
       }
     }
 
@@ -412,10 +563,7 @@ export function TripSummaryScreen({
           {categories.map((category) => {
             const hasError = Boolean(categoryErrors[category.id]);
             return (
-              <div
-                className="rounded-3xl bg-surface-container-low p-5"
-                key={category.id}
-              >
+              <div className="rounded-3xl bg-surface-container-low p-5" key={category.id}>
                 <div className="flex items-start gap-4">
                   <div
                     className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-container-lowest"
@@ -426,9 +574,7 @@ export function TripSummaryScreen({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="font-headline text-xl font-bold text-primary">
-                          {category.name}
-                        </h3>
+                        <h3 className="font-headline text-xl font-bold text-primary">{category.name}</h3>
                         <p className="mt-1 text-sm text-on-surface/70">
                           Set the category budget now and adjust it later as the trip plan changes.
                         </p>

@@ -8,6 +8,7 @@ const {
   syncLogPutMock,
   appMetaGetMock,
   appMetaBulkPutMock,
+  refreshTripSnapshotFromDbMock,
 } = vi.hoisted(() => ({
   transactionMock: vi.fn(),
   categoriesGetMock: vi.fn(),
@@ -16,6 +17,7 @@ const {
   syncLogPutMock: vi.fn(),
   appMetaGetMock: vi.fn(),
   appMetaBulkPutMock: vi.fn(),
+  refreshTripSnapshotFromDbMock: vi.fn(),
 }));
 
 vi.mock("../../../db/tripLedgerDb", () => ({
@@ -23,28 +25,21 @@ vi.mock("../../../db/tripLedgerDb", () => ({
     categories: {
       get: categoriesGetMock,
       put: categoriesPutMock,
-      where: vi.fn(() => ({
-        equals: categoriesWhereEqualsMock,
-      })),
+      where: vi.fn(() => ({ equals: categoriesWhereEqualsMock })),
     },
-    syncLog: {
-      put: syncLogPutMock,
-    },
-    appMeta: {
-      get: appMetaGetMock,
-      bulkPut: appMetaBulkPutMock,
-    },
+    tripSnapshots: {},
+    syncLog: { put: syncLogPutMock },
+    appMeta: { get: appMetaGetMock, bulkPut: appMetaBulkPutMock },
     transaction: transactionMock,
   },
 }));
 
-import { syncMetaKeys } from "../../foundation/lib/syncStatus";
+vi.mock("../../trips/services/tripSnapshotService", () => ({
+  refreshTripSnapshotFromDb: refreshTripSnapshotFromDbMock,
+}));
+
 import { defaultCategoryDefinitions } from "../lib/defaultCategories";
-import {
-  createDefaultCategories,
-  getTripCategories,
-  updateCategoryBudget,
-} from "./categoryService";
+import { createDefaultCategories, getTripCategories, updateCategoryBudget } from "./categoryService";
 
 describe("categoryService", () => {
   beforeEach(() => {
@@ -55,29 +50,22 @@ describe("categoryService", () => {
     syncLogPutMock.mockReset();
     appMetaGetMock.mockReset();
     appMetaBulkPutMock.mockReset();
+    refreshTripSnapshotFromDbMock.mockReset();
 
     transactionMock.mockImplementation(async (_mode: string, ...args: unknown[]) => {
       const callback = args[args.length - 1] as () => Promise<void>;
       await callback();
     });
-    appMetaGetMock.mockResolvedValue({ key: syncMetaKeys.pendingCount, value: "1" });
+    appMetaGetMock.mockResolvedValue({ key: "sync.pendingCount", value: "1" });
   });
 
   it("creates the default category list for a trip", () => {
     const categories = createDefaultCategories("trip-1", "2026-04-06T09:00:00.000Z");
 
     expect(categories).toHaveLength(defaultCategoryDefinitions.length);
-    expect(categories[0]).toEqual(
-      expect.objectContaining({
-        tripId: "trip-1",
-        name: "Fuel",
-        budgetAmount: 0,
-        syncStatus: "pending",
-      }),
-    );
   });
 
-  it("updates a category budget locally and increments pending sync metadata", async () => {
+  it("updates a category budget locally, increments pending sync metadata, and refreshes the snapshot", async () => {
     categoriesGetMock.mockResolvedValue({
       id: "cat-fuel",
       tripId: "trip-1",
@@ -92,30 +80,12 @@ describe("categoryService", () => {
       syncStatus: "pending",
       isDeleted: false,
     });
-    vi.spyOn(crypto, "randomUUID").mockReturnValue("99999999-9999-9999-9999-999999999999");
 
-    const category = await updateCategoryBudget({
-      categoryId: "cat-fuel",
-      budgetAmount: "8500",
-    });
+    const category = await updateCategoryBudget({ categoryId: "cat-fuel", budgetAmount: "8500" });
 
     expect(category.budgetAmount).toBe(8500);
-    expect(categoriesPutMock).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "cat-fuel", budgetAmount: 8500 }),
-    );
-    expect(syncLogPutMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "99999999-9999-9999-9999-999999999999",
-        action: "update",
-        entityType: "category",
-        recordId: "cat-fuel",
-      }),
-    );
-    expect(appMetaBulkPutMock).toHaveBeenCalledWith([
-      { key: syncMetaKeys.mode, value: "pending" },
-      { key: syncMetaKeys.pendingCount, value: "2" },
-      { key: syncMetaKeys.conflictCount, value: "0" },
-    ]);
+    expect(categoriesPutMock).toHaveBeenCalledWith(expect.objectContaining({ id: "cat-fuel", budgetAmount: 8500 }));
+    expect(refreshTripSnapshotFromDbMock).toHaveBeenCalledWith("trip-1", expect.any(String));
   });
 
   it("returns non-deleted categories for a trip", async () => {

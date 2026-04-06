@@ -4,26 +4,31 @@ const {
   transactionMock,
   tripsPutMock,
   categoriesBulkPutMock,
+  tripSnapshotsPutMock,
   syncLogPutMock,
   appMetaGetMock,
   appMetaBulkPutMock,
   tripsToArrayMock,
   categoriesWhereEqualsMock,
+  tripsGetMock,
 } = vi.hoisted(() => ({
   transactionMock: vi.fn(),
   tripsPutMock: vi.fn(),
   categoriesBulkPutMock: vi.fn(),
+  tripSnapshotsPutMock: vi.fn(),
   syncLogPutMock: vi.fn(),
   appMetaGetMock: vi.fn(),
   appMetaBulkPutMock: vi.fn(),
   tripsToArrayMock: vi.fn(),
   categoriesWhereEqualsMock: vi.fn(),
+  tripsGetMock: vi.fn(),
 }));
 
 vi.mock("../../../db/tripLedgerDb", () => ({
   tripLedgerDb: {
     trips: {
       put: tripsPutMock,
+      get: tripsGetMock,
       toArray: tripsToArrayMock,
     },
     categories: {
@@ -31,6 +36,9 @@ vi.mock("../../../db/tripLedgerDb", () => ({
       where: vi.fn(() => ({
         equals: categoriesWhereEqualsMock,
       })),
+    },
+    tripSnapshots: {
+      put: tripSnapshotsPutMock,
     },
     syncLog: {
       put: syncLogPutMock,
@@ -49,7 +57,6 @@ vi.mock("../lib/tripCode", () => ({
     .mockReturnValueOnce("BBB-222"),
 }));
 
-import { syncMetaKeys } from "../../foundation/lib/syncStatus";
 import { createTrip, ensureTripHasCode, getLatestActiveTrip, getTripCategories } from "./tripService";
 
 describe("tripService", () => {
@@ -57,20 +64,37 @@ describe("tripService", () => {
     transactionMock.mockReset();
     tripsPutMock.mockReset();
     categoriesBulkPutMock.mockReset();
+    tripSnapshotsPutMock.mockReset();
     syncLogPutMock.mockReset();
     appMetaGetMock.mockReset();
     appMetaBulkPutMock.mockReset();
     tripsToArrayMock.mockReset();
     categoriesWhereEqualsMock.mockReset();
+    tripsGetMock.mockReset();
 
     transactionMock.mockImplementation(async (_mode: string, ...args: unknown[]) => {
       const callback = args[args.length - 1] as () => Promise<void>;
       await callback();
     });
-    appMetaGetMock.mockResolvedValue({ key: syncMetaKeys.pendingCount, value: "2" });
+    appMetaGetMock.mockResolvedValue({ key: "sync.pendingCount", value: "2" });
+    tripsGetMock.mockResolvedValue({
+      id: "trip-legacy",
+      name: "Legacy",
+      tripCode: "BBB-222",
+      startDate: "2026-06-03",
+      endDate: "2026-06-08",
+      baseCurrency: "INR",
+      totalBudget: 18000,
+      createdAt: "2026-06-01T10:00:00.000Z",
+      updatedAt: "2026-06-01T10:00:00.000Z",
+      createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      syncStatus: "pending",
+      isDeleted: false,
+    });
   });
 
-  it("writes a trip locally, seeds default categories, and stores a trip code", async () => {
+  it("writes a trip locally, seeds default categories, and stores a snapshot", async () => {
     vi.spyOn(crypto, "randomUUID")
       .mockReturnValueOnce("11111111-1111-1111-1111-111111111111")
       .mockReturnValueOnce("22222222-2222-2222-2222-222222222222")
@@ -89,23 +113,16 @@ describe("tripService", () => {
     });
 
     expect(trip.tripCode).toBe("AAA-111");
-    expect(tripsPutMock).toHaveBeenCalledWith(expect.objectContaining({
-      id: "11111111-1111-1111-1111-111111111111",
-      tripCode: "AAA-111",
-      syncStatus: "pending",
-      baseCurrency: "INR",
-    }));
-    expect(categoriesBulkPutMock).toHaveBeenCalledTimes(1);
-    expect(syncLogPutMock).toHaveBeenCalledWith(expect.objectContaining({
-      id: "22222222-2222-2222-2222-222222222222",
-      action: "create",
-      entityType: "trip",
-      recordId: "11111111-1111-1111-1111-111111111111",
-    }));
+    expect(tripSnapshotsPutMock).toHaveBeenCalledWith(
+      expect.objectContaining({ tripCode: "AAA-111" }),
+    );
   });
 
-  it("backfills a trip code for older local trips", async () => {
+  it("backfills a trip code for older local trips and refreshes its snapshot", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue("99999999-9999-9999-9999-999999999999");
+    categoriesWhereEqualsMock.mockReturnValue({
+      toArray: vi.fn().mockResolvedValue([]),
+    });
 
     const trip = await ensureTripHasCode({
       id: "trip-legacy",
@@ -125,37 +142,14 @@ describe("tripService", () => {
 
     expect(trip.tripCode).toBe("BBB-222");
     expect(tripsPutMock).toHaveBeenCalledWith(expect.objectContaining({ tripCode: "BBB-222" }));
-    expect(syncLogPutMock).toHaveBeenCalledWith(expect.objectContaining({
-      id: "99999999-9999-9999-9999-999999999999",
-      action: "update",
-      entityType: "trip",
-      recordId: "trip-legacy",
-    }));
+    expect(tripSnapshotsPutMock).toHaveBeenCalledWith(expect.objectContaining({ tripCode: "BBB-222" }));
   });
 
   it("returns the latest non-deleted trip", async () => {
     tripsToArrayMock.mockResolvedValue([
-      {
-        id: "trip-older",
-        name: "Older",
-        tripCode: "OLD-111",
-        createdAt: "2026-04-01T09:00:00.000Z",
-        isDeleted: false,
-      },
-      {
-        id: "trip-deleted",
-        name: "Deleted",
-        tripCode: "DEL-111",
-        createdAt: "2026-04-06T09:00:00.000Z",
-        isDeleted: true,
-      },
-      {
-        id: "trip-newer",
-        name: "Newer",
-        tripCode: "NEW-111",
-        createdAt: "2026-04-05T09:00:00.000Z",
-        isDeleted: false,
-      },
+      { id: "trip-older", name: "Older", tripCode: "OLD-111", createdAt: "2026-04-01T09:00:00.000Z", isDeleted: false },
+      { id: "trip-deleted", name: "Deleted", tripCode: "DEL-111", createdAt: "2026-04-06T09:00:00.000Z", isDeleted: true },
+      { id: "trip-newer", name: "Newer", tripCode: "NEW-111", createdAt: "2026-04-05T09:00:00.000Z", isDeleted: false },
     ]);
 
     await expect(getLatestActiveTrip()).resolves.toEqual(
@@ -166,27 +160,9 @@ describe("tripService", () => {
   it("returns non-deleted categories for a trip in creation order", async () => {
     categoriesWhereEqualsMock.mockReturnValue({
       toArray: vi.fn().mockResolvedValue([
-        {
-          id: "cat-stay",
-          tripId: "trip-1",
-          name: "Stay",
-          createdAt: "2026-04-06T10:00:00.000Z",
-          isDeleted: false,
-        },
-        {
-          id: "cat-fuel",
-          tripId: "trip-1",
-          name: "Fuel",
-          createdAt: "2026-04-06T09:00:00.000Z",
-          isDeleted: false,
-        },
-        {
-          id: "cat-deleted",
-          tripId: "trip-1",
-          name: "Deleted",
-          createdAt: "2026-04-06T08:00:00.000Z",
-          isDeleted: true,
-        },
+        { id: "cat-stay", tripId: "trip-1", name: "Stay", createdAt: "2026-04-06T10:00:00.000Z", isDeleted: false },
+        { id: "cat-fuel", tripId: "trip-1", name: "Fuel", createdAt: "2026-04-06T09:00:00.000Z", isDeleted: false },
+        { id: "cat-deleted", tripId: "trip-1", name: "Deleted", createdAt: "2026-04-06T08:00:00.000Z", isDeleted: true },
       ]),
     });
 

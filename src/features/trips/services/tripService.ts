@@ -4,6 +4,7 @@ import { syncMetaKeys } from "../../foundation/lib/syncStatus";
 import { createDefaultCategories, getTripCategories } from "../../categories/services/categoryService";
 import { parseTripBudget } from "../lib/tripDraft";
 import { createTripCode } from "../lib/tripCode";
+import { saveTripSnapshot } from "./tripSnapshotService";
 
 export type CreateTripInput = {
   name: string;
@@ -14,12 +15,7 @@ export type CreateTripInput = {
 
 const defaultCurrency = "INR";
 
-function toPendingCount(value: string | undefined) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
-}
-
-async function incrementPendingSync() {
+export async function incrementPendingSync() {
   const currentPendingCount = toPendingCount(
     (await tripLedgerDb.appMeta.get(syncMetaKeys.pendingCount))?.value,
   );
@@ -32,6 +28,11 @@ async function incrementPendingSync() {
     },
     { key: syncMetaKeys.conflictCount, value: "0" },
   ]);
+}
+
+function toPendingCount(value: string | undefined) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
 export async function createTrip(input: CreateTripInput): Promise<TripRecord> {
@@ -58,13 +59,17 @@ export async function createTrip(input: CreateTripInput): Promise<TripRecord> {
 
   await tripLedgerDb.transaction(
     "rw",
-    tripLedgerDb.trips,
-    tripLedgerDb.categories,
-    tripLedgerDb.syncLog,
-    tripLedgerDb.appMeta,
+    [
+      tripLedgerDb.trips,
+      tripLedgerDb.categories,
+      tripLedgerDb.tripSnapshots,
+      tripLedgerDb.syncLog,
+      tripLedgerDb.appMeta,
+    ],
     async () => {
       await tripLedgerDb.trips.put(trip);
       await tripLedgerDb.categories.bulkPut(categories);
+      await saveTripSnapshot(trip, categories, timestamp);
       await tripLedgerDb.syncLog.put({
         id: syncLogId,
         action: "create",
@@ -90,6 +95,7 @@ export async function ensureTripHasCode(trip: TripRecord): Promise<TripRecord> {
   }
 
   const timestamp = new Date().toISOString();
+  const categories = await getTripCategories(trip.id);
   const nextTrip: TripRecord = {
     ...trip,
     tripCode: createTripCode(),
@@ -101,10 +107,12 @@ export async function ensureTripHasCode(trip: TripRecord): Promise<TripRecord> {
   await tripLedgerDb.transaction(
     "rw",
     tripLedgerDb.trips,
+    tripLedgerDb.tripSnapshots,
     tripLedgerDb.syncLog,
     tripLedgerDb.appMeta,
     async () => {
       await tripLedgerDb.trips.put(nextTrip);
+      await saveTripSnapshot(nextTrip, categories, timestamp);
       await tripLedgerDb.syncLog.put({
         id: crypto.randomUUID(),
         action: "update",

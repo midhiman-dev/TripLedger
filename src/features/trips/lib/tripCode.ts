@@ -1,7 +1,7 @@
 const tripCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 export function formatTripCode(code: string) {
-  const normalized = code.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+  const normalized = code.replace(/[^A-Z0-9]/gi, "").toUpperCase().slice(0, 6);
   if (normalized.length <= 3) {
     return normalized;
   }

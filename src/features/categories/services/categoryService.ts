@@ -1,6 +1,8 @@
 import { tripLedgerDb, type CategoryRecord } from "../../../db/tripLedgerDb";
 import { createHlc } from "../../foundation/lib/hlc";
 import { syncMetaKeys } from "../../foundation/lib/syncStatus";
+import { incrementPendingSync } from "../../trips/services/tripService";
+import { refreshTripSnapshotFromDb } from "../../trips/services/tripSnapshotService";
 import { defaultCategoryDefinitions } from "../lib/defaultCategories";
 
 function parseBudgetAmount(rawBudget: string) {
@@ -11,11 +13,6 @@ function parseBudgetAmount(rawBudget: string) {
 
   const amount = Number.parseFloat(normalized);
   return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : amount;
-}
-
-function toPendingCount(value: string | undefined) {
-  const parsed = Number.parseInt(value ?? "", 10);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
 export function createDefaultCategories(tripId: string, timestamp: string) {
@@ -72,14 +69,12 @@ export async function updateCategoryBudget(input: {
   await tripLedgerDb.transaction(
     "rw",
     tripLedgerDb.categories,
+    tripLedgerDb.tripSnapshots,
     tripLedgerDb.syncLog,
     tripLedgerDb.appMeta,
     async () => {
-      const currentPendingCount = toPendingCount(
-        (await tripLedgerDb.appMeta.get(syncMetaKeys.pendingCount))?.value,
-      );
-
       await tripLedgerDb.categories.put(nextCategory);
+      await refreshTripSnapshotFromDb(category.tripId, timestamp);
       await tripLedgerDb.syncLog.put({
         id: crypto.randomUUID(),
         action: "update",
@@ -92,14 +87,7 @@ export async function updateCategoryBudget(input: {
           tripId: category.tripId,
         }),
       });
-      await tripLedgerDb.appMeta.bulkPut([
-        { key: syncMetaKeys.mode, value: "pending" },
-        {
-          key: syncMetaKeys.pendingCount,
-          value: String(currentPendingCount + 1),
-        },
-        { key: syncMetaKeys.conflictCount, value: "0" },
-      ]);
+      await incrementPendingSync();
     },
   );
 

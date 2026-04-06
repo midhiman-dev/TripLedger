@@ -7,8 +7,11 @@ import {
 } from "../lib/installPrompt";
 import { getSyncStatusViewModel, readPersistedSyncStatus } from "../lib/syncStatus";
 import { useShellStore } from "../store/shellStore";
-import { CreateTripScreen, TripSummaryScreen } from "../../trips/components/TripSetupScreens";
+import { CreateTripScreen, JoinTripScreen, TripSummaryScreen } from "../../trips/components/TripSetupScreens";
+import { validateJoinCode } from "../../trips/lib/joinCode";
+import { formatTripCode } from "../../trips/lib/tripCode";
 import { validateTripDraft } from "../../trips/lib/tripDraft";
+import { joinTripByCode } from "../../trips/services/joinTripService";
 import { createTrip, getLatestActiveTrip, getTripCategories } from "../../trips/services/tripService";
 import { useTripStore } from "../../trips/store/tripStore";
 import { updateCategoryBudget } from "../../categories/services/categoryService";
@@ -149,23 +152,33 @@ export function AppShell() {
     setPersistedSyncStatus,
   } = useShellStore();
   const {
+    screenMode,
     activeTrip,
     categories,
     categoryBudgetDrafts,
     categoryErrors,
     savingCategoryId,
+    joinCodeDraft,
+    joinCodeError,
+    joinFeedback,
+    isJoining,
     draft,
     errors,
     touchedFields,
     isHydrating,
     isSaving,
     saveError,
+    setScreenMode,
     setActiveTrip,
     setCategories,
     setCategoryBudgetDraft,
     setCategoryError,
     setSavingCategoryId,
     updateCategory,
+    setJoinCodeDraft,
+    setJoinCodeError,
+    setJoinFeedback,
+    setJoining,
     setDraftField,
     setErrors,
     setHydrating,
@@ -283,6 +296,7 @@ export function AppShell() {
       const tripCategories = await getTripCategories(trip.id);
       setActiveTrip(trip);
       setCategories(tripCategories);
+      setScreenMode("summary");
       resetDraft();
       setPersistedSyncStatus(await readPersistedSyncStatus());
     } catch {
@@ -331,6 +345,57 @@ export function AppShell() {
     }
   }
 
+  function handleOpenJoin() {
+    setJoinFeedback(null);
+    setJoinCodeError(null);
+    setScreenMode("join");
+  }
+
+  function handleJoinCodeChange(value: string) {
+    setJoinCodeDraft(formatTripCode(value));
+    if (joinCodeError) {
+      setJoinCodeError(validateJoinCode(value) ?? null);
+    }
+  }
+
+  async function handleJoinTrip() {
+    const error = validateJoinCode(joinCodeDraft);
+    setJoinCodeError(error ?? null);
+    if (error) {
+      return;
+    }
+
+    setJoining(true);
+    setJoinFeedback(null);
+
+    try {
+      const result = await joinTripByCode(joinCodeDraft);
+      setPersistedSyncStatus(await readPersistedSyncStatus());
+
+      if (result.status === "hydrated" && result.trip) {
+        setActiveTrip(result.trip);
+        setCategories(result.categories);
+        setScreenMode("summary");
+        setJoinFeedback({
+          tone: "hydrated",
+          title: "Trip hydrated locally.",
+          detail: `Code ${result.request.tripCode} restored the full trip snapshot on this device.`,
+        });
+        return;
+      }
+
+      setJoinFeedback({
+        tone: "queued",
+        title: "You will be added when signal returns.",
+        detail: `Code ${result.request.tripCode} was saved locally and queued for first sync.`,
+      });
+    } catch (joinError) {
+      setJoinCodeError(joinError instanceof Error ? joinError.message : "Join request could not be saved locally.");
+    } finally {
+      setJoining(false);
+    }
+  }
+
   const installAction = (
     <InstallCard
       canInstall={canInstall}
@@ -361,7 +426,7 @@ export function AppShell() {
           </div>
         ) : null}
 
-        {isHydrating ? null : activeTrip ? (
+        {isHydrating ? null : activeTrip && screenMode === "summary" ? (
           <TripSummaryScreen
             categories={categories}
             categoryBudgetDrafts={categoryBudgetDrafts}
@@ -373,6 +438,16 @@ export function AppShell() {
             syncStatus={syncStatus}
             trip={activeTrip}
           />
+        ) : screenMode === "join" ? (
+          <JoinTripScreen
+            isJoining={isJoining}
+            joinCodeDraft={joinCodeDraft}
+            joinCodeError={joinCodeError}
+            joinFeedback={joinFeedback}
+            onClose={() => setScreenMode(activeTrip ? "summary" : "create")}
+            onCodeChange={handleJoinCodeChange}
+            onSubmit={handleJoinTrip}
+          />
         ) : (
           <CreateTripScreen
             draft={draft}
@@ -381,6 +456,7 @@ export function AppShell() {
             isSaving={isSaving}
             onBlur={handleFieldBlur}
             onChange={handleFieldChange}
+            onOpenJoin={handleOpenJoin}
             onSubmit={handleCreateTrip}
             saveError={saveError}
             syncStatus={syncStatus}

@@ -42,10 +42,25 @@ export type CategoryRecord = {
   isDeleted: boolean;
 };
 
+export type TripSnapshotRecord = {
+  tripCode: string;
+  trip: TripRecord;
+  categories: CategoryRecord[];
+  updatedAt: string;
+};
+
+export type JoinRequestRecord = {
+  id: string;
+  tripCode: string;
+  requestedAt: string;
+  status: "queued" | "hydrated";
+  snapshotAvailable: boolean;
+};
+
 export type SyncLogRecord = {
   id: string;
-  action: "create" | "update";
-  entityType: "trip" | "category";
+  action: "create" | "update" | "join";
+  entityType: "trip" | "category" | "joinRequest";
   recordId: string;
   timestamp: string;
   details: string;
@@ -55,6 +70,8 @@ class TripLedgerDb extends Dexie {
   appMeta!: Table<AppMetaRecord, string>;
   trips!: Table<TripRecord, string>;
   categories!: Table<CategoryRecord, string>;
+  tripSnapshots!: Table<TripSnapshotRecord, string>;
+  joinRequests!: Table<JoinRequestRecord, string>;
   syncLog!: Table<SyncLogRecord, string>;
 
   constructor() {
@@ -77,6 +94,14 @@ class TripLedgerDb extends Dexie {
       appMeta: "&key",
       trips: "&id, tripCode, createdAt, isDeleted",
       categories: "&id, tripId, createdAt, isDeleted",
+      syncLog: "&id, recordId, timestamp",
+    });
+    this.version(5).stores({
+      appMeta: "&key",
+      trips: "&id, tripCode, createdAt, isDeleted",
+      categories: "&id, tripId, createdAt, isDeleted",
+      tripSnapshots: "&tripCode, updatedAt",
+      joinRequests: "&id, tripCode, requestedAt, status",
       syncLog: "&id, recordId, timestamp",
     });
   }
