@@ -27,7 +27,6 @@ vi.mock("../../../db/tripLedgerDb", () => ({
       put: categoriesPutMock,
       where: vi.fn(() => ({ equals: categoriesWhereEqualsMock })),
     },
-    tripSnapshots: {},
     syncLog: { put: syncLogPutMock },
     appMeta: { get: appMetaGetMock, bulkPut: appMetaBulkPutMock },
     transaction: transactionMock,
@@ -86,6 +85,33 @@ describe("categoryService", () => {
     expect(category.budgetAmount).toBe(8500);
     expect(categoriesPutMock).toHaveBeenCalledWith(expect.objectContaining({ id: "cat-fuel", budgetAmount: 8500 }));
     expect(refreshTripSnapshotFromDbMock).toHaveBeenCalledWith("trip-1", expect.any(String));
+  });
+
+  it("still saves the category budget when snapshot refresh hits a missing store error", async () => {
+    categoriesGetMock.mockResolvedValue({
+      id: "cat-stay",
+      tripId: "trip-1",
+      name: "Stay",
+      budgetAmount: 0,
+      icon: "hotel",
+      color: "#1a1c54",
+      createdAt: "2026-04-06T09:00:00.000Z",
+      updatedAt: "2026-04-06T09:00:00.000Z",
+      createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      syncStatus: "pending",
+      isDeleted: false,
+    });
+    refreshTripSnapshotFromDbMock.mockRejectedValue({
+      name: "NotFoundError",
+      message: "Failed to execute 'objectStore' on 'IDBTransaction': The specified object store was not found.",
+    });
+
+    const category = await updateCategoryBudget({ categoryId: "cat-stay", budgetAmount: "3000" });
+
+    expect(category.budgetAmount).toBe(3000);
+    expect(categoriesPutMock).toHaveBeenCalledWith(expect.objectContaining({ id: "cat-stay", budgetAmount: 3000 }));
+    expect(syncLogPutMock).toHaveBeenCalledWith(expect.objectContaining({ entityType: "category", action: "update" }));
   });
 
   it("returns non-deleted categories for a trip", async () => {

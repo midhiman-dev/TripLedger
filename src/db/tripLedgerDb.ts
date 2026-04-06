@@ -42,6 +42,26 @@ export type CategoryRecord = {
   isDeleted: boolean;
 };
 
+export type ExpenseRecord = {
+  id: string;
+  tripId: string;
+  categoryId: string;
+  amount: number;
+  currency: string;
+  description: string;
+  location: string;
+  paidBy: string;
+  loggedAt: string;
+  deviceId: string;
+  createdAt: string;
+  updatedAt: string;
+  createdAtHlc: HlcRecord;
+  updatedAtHlc: HlcRecord;
+  syncStatus: "pending" | "synced" | "conflict";
+  conflictData: string | null;
+  isDeleted: boolean;
+};
+
 export type TripSnapshotRecord = {
   tripCode: string;
   trip: TripRecord;
@@ -60,7 +80,7 @@ export type JoinRequestRecord = {
 export type SyncLogRecord = {
   id: string;
   action: "create" | "update" | "join";
-  entityType: "trip" | "category" | "joinRequest";
+  entityType: "trip" | "category" | "expense" | "joinRequest";
   recordId: string;
   timestamp: string;
   details: string;
@@ -70,6 +90,7 @@ class TripLedgerDb extends Dexie {
   appMeta!: Table<AppMetaRecord, string>;
   trips!: Table<TripRecord, string>;
   categories!: Table<CategoryRecord, string>;
+  expenses!: Table<ExpenseRecord, string>;
   tripSnapshots!: Table<TripSnapshotRecord, string>;
   joinRequests!: Table<JoinRequestRecord, string>;
   syncLog!: Table<SyncLogRecord, string>;
@@ -104,7 +125,26 @@ class TripLedgerDb extends Dexie {
       joinRequests: "&id, tripCode, requestedAt, status",
       syncLog: "&id, recordId, timestamp",
     });
+    this.version(6).stores({
+      appMeta: "&key",
+      trips: "&id, tripCode, createdAt, isDeleted",
+      categories: "&id, tripId, createdAt, isDeleted",
+      expenses: "&id, tripId, categoryId, loggedAt, syncStatus, isDeleted",
+      tripSnapshots: "&tripCode, updatedAt",
+      joinRequests: "&id, tripCode, requestedAt, status",
+      syncLog: "&id, recordId, timestamp",
+    });
+    this.version(7).stores({
+      appMeta: "&key",
+      trips: "&id, tripCode, createdAt, isDeleted",
+      categories: "&id, tripId, createdAt, isDeleted",
+      expenses: "&id, tripId, categoryId, loggedAt, syncStatus, isDeleted",
+      tripSnapshots: "&tripCode, updatedAt",
+      joinRequests: "&id, tripCode, requestedAt, status",
+      syncLog: "&id, recordId, timestamp",
+    });
   }
 }
 
 export const tripLedgerDb = new TripLedgerDb();
+

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { CategoryRecord, TripRecord } from "../../../db/tripLedgerDb";
+import type { CategoryRecord, ExpenseRecord, TripRecord } from "../../../db/tripLedgerDb";
 import {
   emptyTripDraft,
   type TripDraft,
@@ -20,6 +20,7 @@ type TripStore = {
   screenMode: ScreenMode;
   activeTrip: TripRecord | null;
   categories: CategoryRecord[];
+  expenses: ExpenseRecord[];
   categoryBudgetDrafts: Record<string, string>;
   categoryErrors: Record<string, string | undefined>;
   savingCategoryId: string | null;
@@ -39,6 +40,8 @@ type TripStore = {
   touchField: (field: TripField) => void;
   setActiveTrip: (trip: TripRecord | null) => void;
   setCategories: (categories: CategoryRecord[]) => void;
+  setExpenses: (expenses: ExpenseRecord[]) => void;
+  prependExpense: (expense: ExpenseRecord) => void;
   setCategoryBudgetDraft: (categoryId: string, value: string) => void;
   setCategoryError: (categoryId: string, message?: string) => void;
   setSavingCategoryId: (categoryId: string | null) => void;
@@ -58,6 +61,7 @@ const defaultState = {
   screenMode: "create" as ScreenMode,
   activeTrip: null,
   categories: [],
+  expenses: [],
   categoryBudgetDrafts: {},
   categoryErrors: {},
   savingCategoryId: null,
@@ -112,6 +116,11 @@ export const useTripStore = create<TripStore>((set) => ({
       categoryErrors: {},
       savingCategoryId: null,
     }),
+  setExpenses: (expenses) => set({ expenses }),
+  prependExpense: (expense) =>
+    set((state) => ({
+      expenses: [expense, ...state.expenses.filter((item) => item.id !== expense.id)],
+    })),
   setCategoryBudgetDraft: (categoryId, value) =>
     set((state) => ({
       categoryBudgetDrafts: {

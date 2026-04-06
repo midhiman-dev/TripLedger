@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
-import { tripLedgerDb } from "../../../db/tripLedgerDb";
+import { tripLedgerDb, type CategoryRecord, type ExpenseRecord } from "../../../db/tripLedgerDb";
 import {
   type BeforeInstallPromptEvent,
   isStandaloneDisplay,
@@ -15,6 +15,8 @@ import { joinTripByCode } from "../../trips/services/joinTripService";
 import { createTrip, getLatestActiveTrip, getTripCategories } from "../../trips/services/tripService";
 import { useTripStore } from "../../trips/store/tripStore";
 import { updateCategoryBudget } from "../../categories/services/categoryService";
+import { QuickAddExpenseSheet } from "../../expenses/components/QuickAddExpenseSheet";
+import { createExpense, getTripExpenses } from "../../expenses/services/expenseService";
 
 function StatusPill({
   label,
@@ -124,6 +126,152 @@ function InstallCard({
   );
 }
 
+function RecentExpensesSection({
+  expenses,
+  categories,
+}: {
+  expenses: ExpenseRecord[];
+  categories: CategoryRecord[];
+}) {
+  const categoryMap = new Map(categories.map((category) => [category.id, category]));
+  const recentExpenses = expenses.slice(0, 4);
+
+  function formatAmount(amount: number, currency: string) {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  }
+
+  function formatLoggedAt(loggedAt: string) {
+    return new Intl.DateTimeFormat("en-IN", {
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(loggedAt));
+  }
+
+  return (
+    <section className="rounded-3xl bg-surface-container-lowest p-6 shadow-ambient">
+      <div className="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">
+            Local-first logging
+          </p>
+          <h2 className="font-headline text-2xl font-extrabold tracking-tight text-primary">
+            Recent Activity
+          </h2>
+        </div>
+        <div className="rounded-full bg-secondary-container/20 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary">
+          {expenses.length} total
+        </div>
+      </div>
+
+      {recentExpenses.length === 0 ? (
+        <div className="rounded-3xl bg-surface-container-low p-5 text-sm leading-6 text-on-surface/75">
+          No expenses logged yet. Use Quick Add to capture the moment before it slips.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {recentExpenses.map((expense) => {
+            const category = categoryMap.get(expense.categoryId);
+            return (
+              <div className="rounded-3xl bg-surface-container-low p-5" key={expense.id}>
+                <div className="flex items-start gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-container-lowest text-primary">
+                    <span className="material-symbols-outlined text-3xl">
+                      {category?.icon ?? "payments"}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-headline text-xl font-bold text-primary">
+                          {expense.description || category?.name || "Expense"}
+                        </h3>
+                        <p className="mt-1 text-sm text-on-surface/70">
+                          {formatLoggedAt(expense.loggedAt)}
+                          {expense.location ? ` • ${expense.location}` : " • Local pending"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-headline text-lg font-bold text-primary">
+                          {formatAmount(expense.amount, expense.currency)}
+                        </p>
+                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-secondary">
+                          {expense.syncStatus}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-sm text-on-surface/75">
+                      Paid by {expense.paidBy || "You"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StartupRecoveryCard({ detail }: { detail: string }) {
+  return (
+    <section className="rounded-3xl bg-surface-container-lowest p-6 shadow-ambient">
+      <div className="rounded-3xl bg-surface-container-low p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary-container/20 text-secondary">
+            <span className="material-symbols-outlined text-2xl">database</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">
+              Offline storage recovery
+            </p>
+            <h1 className="mt-2 font-headline text-3xl font-extrabold tracking-tight text-primary">
+              Local data needs a refresh
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-on-surface/75">{detail}</p>
+            <div className="mt-5 rounded-2xl bg-surface-container-lowest px-4 py-3 text-sm text-on-surface/70">
+              If a refresh does not fix it, clear site data for this TripLedger origin once and reopen the app.
+            </div>
+          </div>
+        </div>
+      </div>
+      <button
+        className="mt-6 min-h-14 w-full rounded-2xl bg-primary px-5 py-4 text-base font-bold text-on-primary shadow-ambient transition"
+        onClick={() => window.location.reload()}
+        type="button"
+      >
+        Refresh TripLedger
+      </button>
+    </section>
+  );
+}
+
+function isSchemaMismatchError(error: unknown) {
+  const candidate = error as {
+    name?: string;
+    message?: string;
+    inner?: { name?: string; message?: string };
+  };
+
+  const messages = [candidate?.message, candidate?.inner?.message].filter(
+    (value): value is string => typeof value === "string",
+  );
+  const names = [candidate?.name, candidate?.inner?.name].filter(
+    (value): value is string => typeof value === "string",
+  );
+
+  return (
+    names.includes("NotFoundError") &&
+    messages.some((message) => message.toLowerCase().includes("object store was not found"))
+  );
+}
+
 function validateCategoryBudget(rawBudget: string) {
   if (!rawBudget.trim()) {
     return undefined;
@@ -155,6 +303,7 @@ export function AppShell() {
     screenMode,
     activeTrip,
     categories,
+    expenses,
     categoryBudgetDrafts,
     categoryErrors,
     savingCategoryId,
@@ -171,6 +320,8 @@ export function AppShell() {
     setScreenMode,
     setActiveTrip,
     setCategories,
+    setExpenses,
+    prependExpense,
     setCategoryBudgetDraft,
     setCategoryError,
     setSavingCategoryId,
@@ -187,6 +338,10 @@ export function AppShell() {
     touchField,
     resetDraft,
   } = useTripStore();
+  const [isQuickAddOpen, setQuickAddOpen] = useState(false);
+  const [isSavingExpense, setSavingExpense] = useState(false);
+  const [expenseFeedback, setExpenseFeedback] = useState<string | null>(null);
+  const [startupRecoveryMessage, setStartupRecoveryMessage] = useState<string | null>(null);
 
   const syncStatus = getSyncStatusViewModel(isOnline, persistedSyncStatus);
 
@@ -225,27 +380,49 @@ export function AppShell() {
     let cancelled = false;
 
     async function hydrateApp() {
-      const [status, trip] = await Promise.all([
-        readPersistedSyncStatus(),
-        getLatestActiveTrip(),
-      ]);
+      try {
+        setStartupRecoveryMessage(null);
 
-      if (cancelled) {
-        return;
-      }
+        const status = await readPersistedSyncStatus();
+        const trip = await getLatestActiveTrip();
 
-      setPersistedSyncStatus(status);
-      setActiveTrip(trip);
-
-      if (trip) {
-        const tripCategories = await getTripCategories(trip.id);
-        if (!cancelled) {
-          setCategories(tripCategories);
+        if (cancelled) {
+          return;
         }
-      }
 
-      if (!cancelled) {
-        setHydrating(false);
+        setPersistedSyncStatus(status);
+        setActiveTrip(trip);
+
+        if (trip) {
+          const [tripCategories, tripExpenses] = await Promise.all([
+            getTripCategories(trip.id),
+            getTripExpenses(trip.id),
+          ]);
+          if (!cancelled) {
+            setCategories(tripCategories);
+            setExpenses(tripExpenses);
+          }
+        } else if (!cancelled) {
+          setExpenses([]);
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (isSchemaMismatchError(error)) {
+          setStartupRecoveryMessage(
+            "TripLedger found an older offline database shape on this device. Refresh once so the browser can reopen local storage with the latest schema.",
+          );
+        } else {
+          setStartupRecoveryMessage(
+            "TripLedger could not open local storage on this device. Refresh once and try again.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setHydrating(false);
+        }
       }
     }
 
@@ -254,7 +431,19 @@ export function AppShell() {
     return () => {
       cancelled = true;
     };
-  }, [setActiveTrip, setCategories, setHydrating, setPersistedSyncStatus]);
+  }, [setActiveTrip, setCategories, setExpenses, setHydrating, setPersistedSyncStatus]);
+
+  useEffect(() => {
+    if (!expenseFeedback) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setExpenseFeedback(null);
+    }, 3000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [expenseFeedback]);
 
   function handleFieldChange(field: keyof typeof draft, value: string) {
     const nextDraft = {
@@ -296,6 +485,7 @@ export function AppShell() {
       const tripCategories = await getTripCategories(trip.id);
       setActiveTrip(trip);
       setCategories(tripCategories);
+      setExpenses([]);
       setScreenMode("summary");
       resetDraft();
       setPersistedSyncStatus(await readPersistedSyncStatus());
@@ -375,6 +565,7 @@ export function AppShell() {
       if (result.status === "hydrated" && result.trip) {
         setActiveTrip(result.trip);
         setCategories(result.categories);
+        setExpenses([]);
         setScreenMode("summary");
         setJoinFeedback({
           tone: "hydrated",
@@ -396,6 +587,38 @@ export function AppShell() {
     }
   }
 
+  async function handleQuickAddExpense(input: {
+    categoryId: string;
+    amount: string;
+    description: string;
+    location: string;
+    paidBy: string;
+  }) {
+    if (!activeTrip) {
+      return;
+    }
+
+    setSavingExpense(true);
+
+    try {
+      const expense = await createExpense({
+        tripId: activeTrip.id,
+        categoryId: input.categoryId,
+        amount: input.amount,
+        currency: activeTrip.baseCurrency,
+        description: input.description,
+        location: input.location,
+        paidBy: input.paidBy,
+      });
+      prependExpense(expense);
+      setQuickAddOpen(false);
+      setExpenseFeedback("Expense added locally");
+      setPersistedSyncStatus(await readPersistedSyncStatus());
+    } finally {
+      setSavingExpense(false);
+    }
+  }
+
   const installAction = (
     <InstallCard
       canInstall={canInstall}
@@ -408,66 +631,109 @@ export function AppShell() {
   );
 
   return (
-    <main className="min-h-dvh bg-surface px-6 pb-8 pt-6 text-on-surface">
-      {syncStatus.tone === "offline" && syncStatus.banner ? (
-        <OfflineBanner message={syncStatus.banner} />
-      ) : null}
-
-      <div className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-md flex-col gap-6">
-        {syncStatus.banner && syncStatus.tone !== "offline" ? (
-          <div
-            className={`rounded-2xl px-4 py-3 text-sm font-medium shadow-ambient ${
-              syncStatus.tone === "conflict"
-                ? "bg-red-600 text-white"
-                : "bg-secondary-container/85 text-on-secondary-container backdrop-blur"
-            }`}
-          >
-            {syncStatus.banner}
-          </div>
+    <>
+      <main className="min-h-dvh bg-surface px-6 pb-24 pt-6 text-on-surface">
+        {syncStatus.tone === "offline" && syncStatus.banner ? (
+          <OfflineBanner message={syncStatus.banner} />
         ) : null}
 
-        {isHydrating ? null : activeTrip && screenMode === "summary" ? (
-          <TripSummaryScreen
-            categories={categories}
-            categoryBudgetDrafts={categoryBudgetDrafts}
-            categoryErrors={categoryErrors}
-            installAction={installAction}
-            onCategoryBudgetBlur={handleCategoryBudgetBlur}
-            onCategoryBudgetChange={handleCategoryBudgetChange}
-            savingCategoryId={savingCategoryId}
-            syncStatus={syncStatus}
-            trip={activeTrip}
-          />
-        ) : screenMode === "join" ? (
-          <JoinTripScreen
-            isJoining={isJoining}
-            joinCodeDraft={joinCodeDraft}
-            joinCodeError={joinCodeError}
-            joinFeedback={joinFeedback}
-            onClose={() => setScreenMode(activeTrip ? "summary" : "create")}
-            onCodeChange={handleJoinCodeChange}
-            onSubmit={handleJoinTrip}
-          />
-        ) : (
-          <CreateTripScreen
-            draft={draft}
-            errors={errors}
-            installAction={installAction}
-            isSaving={isSaving}
-            onBlur={handleFieldBlur}
-            onChange={handleFieldChange}
-            onOpenJoin={handleOpenJoin}
-            onSubmit={handleCreateTrip}
-            saveError={saveError}
-            syncStatus={syncStatus}
-            touchedFields={touchedFields}
-          />
-        )}
+        <div className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-md flex-col gap-6">
+          {syncStatus.banner && syncStatus.tone !== "offline" ? (
+            <div
+              className={`rounded-2xl px-4 py-3 text-sm font-medium shadow-ambient ${
+                syncStatus.tone === "conflict"
+                  ? "bg-red-600 text-white"
+                  : "bg-secondary-container/85 text-on-secondary-container backdrop-blur"
+              }`}
+            >
+              {syncStatus.banner}
+            </div>
+          ) : null}
 
-        <footer className="pb-24 text-center text-xs font-medium text-on-surface/60">
-          Version {appVersion}. Offline-first trip setup writes to Dexie before any sync path starts.
-        </footer>
-      </div>
-    </main>
+          {isHydrating ? null : startupRecoveryMessage ? (
+            <StartupRecoveryCard detail={startupRecoveryMessage} />
+          ) : activeTrip && screenMode === "summary" ? (
+            <>
+              <TripSummaryScreen
+                categories={categories}
+                categoryBudgetDrafts={categoryBudgetDrafts}
+                categoryErrors={categoryErrors}
+                installAction={installAction}
+                onCategoryBudgetBlur={handleCategoryBudgetBlur}
+                onCategoryBudgetChange={handleCategoryBudgetChange}
+                savingCategoryId={savingCategoryId}
+                syncStatus={syncStatus}
+                trip={activeTrip}
+              />
+              <RecentExpensesSection categories={categories} expenses={expenses} />
+            </>
+          ) : screenMode === "join" ? (
+            <JoinTripScreen
+              isJoining={isJoining}
+              joinCodeDraft={joinCodeDraft}
+              joinCodeError={joinCodeError}
+              joinFeedback={joinFeedback}
+              onClose={() => setScreenMode(activeTrip ? "summary" : "create")}
+              onCodeChange={handleJoinCodeChange}
+              onSubmit={handleJoinTrip}
+            />
+          ) : (
+            <CreateTripScreen
+              draft={draft}
+              errors={errors}
+              installAction={installAction}
+              isSaving={isSaving}
+              onBlur={handleFieldBlur}
+              onChange={handleFieldChange}
+              onOpenJoin={handleOpenJoin}
+              onSubmit={handleCreateTrip}
+              saveError={saveError}
+              syncStatus={syncStatus}
+              touchedFields={touchedFields}
+            />
+          )}
+
+          <footer className="pb-24 text-center text-xs font-medium text-on-surface/60">
+            Version {appVersion}. Offline-first trip setup and expense logging write to Dexie before any sync path starts.
+          </footer>
+        </div>
+      </main>
+
+      {activeTrip && screenMode === "summary" && !startupRecoveryMessage ? (
+        <button
+          aria-label="Quick Add Expense"
+          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-secondary-container text-primary shadow-[0_12px_24px_rgba(254,165,32,0.3)] transition active:scale-95"
+          onClick={() => setQuickAddOpen(true)}
+          type="button"
+        >
+          <span className="material-symbols-outlined text-3xl">add</span>
+        </button>
+      ) : null}
+
+      {expenseFeedback ? (
+        <div className="fixed bottom-24 left-1/2 z-[70] w-[90%] max-w-sm -translate-x-1/2">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#36b96a]/10 bg-[#7efba4] px-4 py-3 text-[#00210c] shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#36b96a]/20 text-[#005228]">
+                <span className="material-symbols-outlined text-[20px]">check_circle</span>
+              </div>
+              <p className="font-headline text-sm font-bold">{expenseFeedback}</p>
+            </div>
+            <button onClick={() => setExpenseFeedback(null)} type="button">
+              <span className="material-symbols-outlined text-[#005228]">close</span>
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <QuickAddExpenseSheet
+        categories={categories}
+        currency={activeTrip?.baseCurrency ?? "INR"}
+        isOpen={isQuickAddOpen}
+        isSaving={isSavingExpense}
+        onClose={() => setQuickAddOpen(false)}
+        onSubmit={handleQuickAddExpense}
+      />
+    </>
   );
 }

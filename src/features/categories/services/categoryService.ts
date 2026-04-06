@@ -1,6 +1,5 @@
 import { tripLedgerDb, type CategoryRecord } from "../../../db/tripLedgerDb";
 import { createHlc } from "../../foundation/lib/hlc";
-import { syncMetaKeys } from "../../foundation/lib/syncStatus";
 import { incrementPendingSync } from "../../trips/services/tripService";
 import { refreshTripSnapshotFromDb } from "../../trips/services/tripSnapshotService";
 import { defaultCategoryDefinitions } from "../lib/defaultCategories";
@@ -13,6 +12,26 @@ function parseBudgetAmount(rawBudget: string) {
 
   const amount = Number.parseFloat(normalized);
   return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : amount;
+}
+
+function isMissingObjectStoreError(error: unknown) {
+  const candidate = error as {
+    name?: string;
+    message?: string;
+    inner?: { name?: string; message?: string };
+  };
+
+  const names = [candidate?.name, candidate?.inner?.name].filter(
+    (value): value is string => typeof value === "string",
+  );
+  const messages = [candidate?.message, candidate?.inner?.message].filter(
+    (value): value is string => typeof value === "string",
+  );
+
+  return (
+    names.includes("NotFoundError") &&
+    messages.some((message) => message.toLowerCase().includes("object store was not found"))
+  );
 }
 
 export function createDefaultCategories(tripId: string, timestamp: string) {
@@ -69,12 +88,10 @@ export async function updateCategoryBudget(input: {
   await tripLedgerDb.transaction(
     "rw",
     tripLedgerDb.categories,
-    tripLedgerDb.tripSnapshots,
     tripLedgerDb.syncLog,
     tripLedgerDb.appMeta,
     async () => {
       await tripLedgerDb.categories.put(nextCategory);
-      await refreshTripSnapshotFromDb(category.tripId, timestamp);
       await tripLedgerDb.syncLog.put({
         id: crypto.randomUUID(),
         action: "update",
@@ -90,6 +107,14 @@ export async function updateCategoryBudget(input: {
       await incrementPendingSync();
     },
   );
+
+  try {
+    await refreshTripSnapshotFromDb(category.tripId, timestamp);
+  } catch (error) {
+    if (!isMissingObjectStoreError(error)) {
+      throw error;
+    }
+  }
 
   return nextCategory;
 }
