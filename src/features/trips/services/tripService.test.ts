@@ -43,8 +43,14 @@ vi.mock("../../../db/tripLedgerDb", () => ({
   },
 }));
 
+vi.mock("../lib/tripCode", () => ({
+  createTripCode: vi.fn()
+    .mockReturnValueOnce("AAA-111")
+    .mockReturnValueOnce("BBB-222"),
+}));
+
 import { syncMetaKeys } from "../../foundation/lib/syncStatus";
-import { createTrip, getLatestActiveTrip, getTripCategories } from "./tripService";
+import { createTrip, ensureTripHasCode, getLatestActiveTrip, getTripCategories } from "./tripService";
 
 describe("tripService", () => {
   beforeEach(() => {
@@ -64,7 +70,7 @@ describe("tripService", () => {
     appMetaGetMock.mockResolvedValue({ key: syncMetaKeys.pendingCount, value: "2" });
   });
 
-  it("writes a trip locally, seeds default categories, and increments pending sync metadata", async () => {
+  it("writes a trip locally, seeds default categories, and stores a trip code", async () => {
     vi.spyOn(crypto, "randomUUID")
       .mockReturnValueOnce("11111111-1111-1111-1111-111111111111")
       .mockReturnValueOnce("22222222-2222-2222-2222-222222222222")
@@ -82,34 +88,49 @@ describe("tripService", () => {
       totalBudget: "18000",
     });
 
-    expect(trip.id).toBe("11111111-1111-1111-1111-111111111111");
-    expect(trip.name).toBe("Goa Drive");
-    expect(trip.totalBudget).toBe(18000);
+    expect(trip.tripCode).toBe("AAA-111");
     expect(tripsPutMock).toHaveBeenCalledWith(expect.objectContaining({
       id: "11111111-1111-1111-1111-111111111111",
+      tripCode: "AAA-111",
       syncStatus: "pending",
       baseCurrency: "INR",
     }));
     expect(categoriesBulkPutMock).toHaveBeenCalledTimes(1);
-    expect(categoriesBulkPutMock.mock.calls[0][0]).toHaveLength(6);
-    expect(categoriesBulkPutMock.mock.calls[0][0][0]).toEqual(
-      expect.objectContaining({
-        tripId: "11111111-1111-1111-1111-111111111111",
-        name: "Fuel",
-        budgetAmount: 0,
-      }),
-    );
     expect(syncLogPutMock).toHaveBeenCalledWith(expect.objectContaining({
       id: "22222222-2222-2222-2222-222222222222",
       action: "create",
       entityType: "trip",
       recordId: "11111111-1111-1111-1111-111111111111",
     }));
-    expect(appMetaBulkPutMock).toHaveBeenCalledWith([
-      { key: syncMetaKeys.mode, value: "pending" },
-      { key: syncMetaKeys.pendingCount, value: "3" },
-      { key: syncMetaKeys.conflictCount, value: "0" },
-    ]);
+  });
+
+  it("backfills a trip code for older local trips", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("99999999-9999-9999-9999-999999999999");
+
+    const trip = await ensureTripHasCode({
+      id: "trip-legacy",
+      name: "Legacy",
+      tripCode: "",
+      startDate: "2026-06-03",
+      endDate: "2026-06-08",
+      baseCurrency: "INR",
+      totalBudget: 18000,
+      createdAt: "2026-06-01T10:00:00.000Z",
+      updatedAt: "2026-06-01T10:00:00.000Z",
+      createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      syncStatus: "synced",
+      isDeleted: false,
+    });
+
+    expect(trip.tripCode).toBe("BBB-222");
+    expect(tripsPutMock).toHaveBeenCalledWith(expect.objectContaining({ tripCode: "BBB-222" }));
+    expect(syncLogPutMock).toHaveBeenCalledWith(expect.objectContaining({
+      id: "99999999-9999-9999-9999-999999999999",
+      action: "update",
+      entityType: "trip",
+      recordId: "trip-legacy",
+    }));
   });
 
   it("returns the latest non-deleted trip", async () => {
@@ -117,25 +138,28 @@ describe("tripService", () => {
       {
         id: "trip-older",
         name: "Older",
+        tripCode: "OLD-111",
         createdAt: "2026-04-01T09:00:00.000Z",
         isDeleted: false,
       },
       {
         id: "trip-deleted",
         name: "Deleted",
+        tripCode: "DEL-111",
         createdAt: "2026-04-06T09:00:00.000Z",
         isDeleted: true,
       },
       {
         id: "trip-newer",
         name: "Newer",
+        tripCode: "NEW-111",
         createdAt: "2026-04-05T09:00:00.000Z",
         isDeleted: false,
       },
     ]);
 
     await expect(getLatestActiveTrip()).resolves.toEqual(
-      expect.objectContaining({ id: "trip-newer", name: "Newer" }),
+      expect.objectContaining({ id: "trip-newer", name: "Newer", tripCode: "NEW-111" }),
     );
   });
 

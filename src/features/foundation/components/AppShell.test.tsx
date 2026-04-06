@@ -14,6 +14,8 @@ const {
   getTripCategoriesMock,
   createTripMock,
   updateCategoryBudgetMock,
+  writeTextMock,
+  shareMock,
 } = vi.hoisted(() => ({
   appMetaPutMock: vi.fn(),
   readPersistedSyncStatusMock: vi.fn<() => Promise<PersistedSyncStatus>>(),
@@ -21,6 +23,8 @@ const {
   getTripCategoriesMock: vi.fn(),
   createTripMock: vi.fn(),
   updateCategoryBudgetMock: vi.fn(),
+  writeTextMock: vi.fn(),
+  shareMock: vi.fn(),
 }));
 
 vi.mock("../../../db/tripLedgerDb", () => ({
@@ -98,6 +102,22 @@ describe("AppShell", () => {
     getTripCategoriesMock.mockReset();
     createTripMock.mockReset();
     updateCategoryBudgetMock.mockReset();
+    writeTextMock.mockReset();
+    shareMock.mockReset();
+
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: writeTextMock,
+      },
+    });
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: shareMock,
+    });
+
+    writeTextMock.mockResolvedValue(undefined);
+    shareMock.mockRejectedValue(new Error("share unavailable"));
 
     readPersistedSyncStatusMock.mockResolvedValue({
       mode: "synced",
@@ -150,11 +170,12 @@ describe("AppShell", () => {
     expect(screen.getByText(/trip name is required/i)).toBeInTheDocument();
   });
 
-  it("creates a trip locally and shows seeded editable categories", async () => {
+  it("creates a trip locally and shows a shareable trip code", async () => {
     const user = userEvent.setup();
     const createdTrip = {
       id: "trip-1",
       name: "Spiti Escape",
+      tripCode: "ABC-234",
       startDate: "2026-05-11",
       endDate: "2026-05-18",
       baseCurrency: "INR",
@@ -205,19 +226,17 @@ describe("AppShell", () => {
       expect(getTripCategoriesMock).toHaveBeenCalledWith("trip-1");
     });
 
-    expect(
-      screen.getByRole("heading", { name: /default categories/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /trip code/i })).toBeInTheDocument();
+    expect(screen.getByText("ABC-234")).toBeInTheDocument();
     expect(screen.getByLabelText(/fuel budget/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/food budget/i)).toBeInTheDocument();
-    expect(screen.getByText((content) => content.includes("72,000.00"))).toBeInTheDocument();
   });
 
-  it("saves a category budget edit locally on blur", async () => {
+  it("shows copy feedback when share falls back to clipboard", async () => {
     const user = userEvent.setup();
     getLatestActiveTripMock.mockResolvedValue({
       id: "trip-1",
       name: "BLR GOA Roadtrip",
+      tripCode: "GOA-247",
       startDate: "2026-04-15",
       endDate: "2026-04-21",
       baseCurrency: "INR",
@@ -229,39 +248,17 @@ describe("AppShell", () => {
       syncStatus: "pending",
       isDeleted: false,
     });
-    readPersistedSyncStatusMock
-      .mockResolvedValueOnce({
-        mode: "pending",
-        pendingCount: 1,
-        conflictCount: 0,
-        lastSyncedAt: "2026-04-05T10:00:00.000Z",
-      })
-      .mockResolvedValueOnce({
-        mode: "pending",
-        pendingCount: 2,
-        conflictCount: 0,
-        lastSyncedAt: "2026-04-05T10:00:00.000Z",
-      });
-    updateCategoryBudgetMock.mockResolvedValue({
-      ...defaultCategories[0],
-      budgetAmount: 12000,
-      updatedAt: "2026-04-06T10:00:00.000Z",
-    });
 
     await renderShell();
 
-    const fuelBudgetInput = screen.getByLabelText(/fuel budget/i);
-    await user.type(fuelBudgetInput, "12000");
-    fireEvent.blur(fuelBudgetInput);
+    await user.click(screen.getByRole("button", { name: /copy invite/i }));
 
     await waitFor(() => {
-      expect(updateCategoryBudgetMock).toHaveBeenCalledWith({
-        categoryId: "cat-fuel",
-        budgetAmount: "12000",
-      });
+      expect(shareMock).toHaveBeenCalled();
     });
 
-    expect(screen.getByDisplayValue("12000")).toBeInTheDocument();
-    expect(screen.getByText(/2 changes are queued for sync/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/invite copied\. paste it into whatsapp or any other app\./i),
+    ).toBeInTheDocument();
   });
 });

@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { CategoryRecord, TripRecord } from "../../../db/tripLedgerDb";
 import type { SyncStatusViewModel } from "../../foundation/lib/syncStatus";
+import { buildTripShareText } from "../lib/tripCode";
 import {
   validateTripDraft,
   type TripDraft,
@@ -260,6 +261,33 @@ export function TripSummaryScreen({
   onCategoryBudgetChange,
   onCategoryBudgetBlur,
 }: TripSummaryProps) {
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
+
+  async function handleShareCode() {
+    const shareText = buildTripShareText(trip.name, trip.tripCode);
+
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({
+          title: `${trip.name} invite`,
+          text: shareText,
+        });
+        setShareFeedback("Invite ready to send.");
+        return;
+      } catch {
+        // Fall through to clipboard for desktop and unsupported share targets.
+      }
+    }
+
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(shareText);
+      setShareFeedback("Invite copied. Paste it into WhatsApp or any other app.");
+      return;
+    }
+
+    setShareFeedback("Copy is not available on this browser.");
+  }
+
   return (
     <>
       <header className="rounded-3xl bg-surface-container-low px-6 py-5">
@@ -289,6 +317,58 @@ export function TripSummaryScreen({
           <p className="max-w-sm text-sm leading-6 text-white/80">
             Local writes land first and sync can catch up later without blocking trip setup.
           </p>
+        </div>
+      </section>
+
+      <section className="rounded-3xl bg-surface-container-lowest p-6 shadow-ambient">
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">
+              Shareable invite
+            </p>
+            <h2 className="font-headline text-2xl font-extrabold tracking-tight text-primary">
+              Trip Code
+            </h2>
+          </div>
+          <div className="rounded-full bg-surface-container-low px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+            6 characters
+          </div>
+        </div>
+
+        <div className="space-y-4 rounded-3xl bg-surface-container-low p-5">
+          <div className="flex items-center justify-between gap-4 rounded-2xl bg-surface-container-lowest px-4 py-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-outline">Invite Code</p>
+              <p className="font-headline text-3xl font-extrabold tracking-[0.12em] text-primary">
+                {trip.tripCode}
+              </p>
+            </div>
+            <span className="material-symbols-outlined text-3xl text-secondary">qr_code_scanner</span>
+          </div>
+          <p className="text-sm leading-6 text-on-surface/75">
+            Share this short code through WhatsApp or any other app. People can use it later to join without email or passwords.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              className="min-h-14 rounded-2xl bg-secondary-container px-5 py-4 text-base font-semibold text-on-secondary-container transition hover:brightness-105"
+              onClick={handleShareCode}
+              type="button"
+            >
+              Share Code
+            </button>
+            <button
+              className="min-h-14 rounded-2xl bg-surface-container-high px-5 py-4 text-base font-semibold text-primary transition hover:brightness-105"
+              onClick={handleShareCode}
+              type="button"
+            >
+              Copy Invite
+            </button>
+          </div>
+          {shareFeedback ? (
+            <div className="rounded-2xl bg-[#e1e0ff]/40 px-4 py-3 text-sm font-medium text-primary">
+              {shareFeedback}
+            </div>
+          ) : null}
         </div>
       </section>
 

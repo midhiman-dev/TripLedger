@@ -14,6 +14,7 @@ export type HlcRecord = {
 export type TripRecord = {
   id: string;
   name: string;
+  tripCode: string;
   startDate: string;
   endDate: string;
   baseCurrency: string;
@@ -69,6 +70,12 @@ class TripLedgerDb extends Dexie {
     this.version(3).stores({
       appMeta: "&key",
       trips: "&id, createdAt, isDeleted",
+      categories: "&id, tripId, createdAt, isDeleted",
+      syncLog: "&id, recordId, timestamp",
+    });
+    this.version(4).stores({
+      appMeta: "&key",
+      trips: "&id, tripCode, createdAt, isDeleted",
       categories: "&id, tripId, createdAt, isDeleted",
       syncLog: "&id, recordId, timestamp",
     });
