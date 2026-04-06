@@ -26,10 +26,25 @@ export type TripRecord = {
   isDeleted: boolean;
 };
 
+export type CategoryRecord = {
+  id: string;
+  tripId: string;
+  name: string;
+  budgetAmount: number;
+  icon: string;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+  createdAtHlc: HlcRecord;
+  updatedAtHlc: HlcRecord;
+  syncStatus: "pending" | "synced" | "conflict";
+  isDeleted: boolean;
+};
+
 export type SyncLogRecord = {
   id: string;
-  action: "create";
-  entityType: "trip";
+  action: "create" | "update";
+  entityType: "trip" | "category";
   recordId: string;
   timestamp: string;
   details: string;
@@ -38,6 +53,7 @@ export type SyncLogRecord = {
 class TripLedgerDb extends Dexie {
   appMeta!: Table<AppMetaRecord, string>;
   trips!: Table<TripRecord, string>;
+  categories!: Table<CategoryRecord, string>;
   syncLog!: Table<SyncLogRecord, string>;
 
   constructor() {
@@ -48,6 +64,12 @@ class TripLedgerDb extends Dexie {
     this.version(2).stores({
       appMeta: "&key",
       trips: "&id, createdAt, isDeleted",
+      syncLog: "&id, recordId, timestamp",
+    });
+    this.version(3).stores({
+      appMeta: "&key",
+      trips: "&id, createdAt, isDeleted",
+      categories: "&id, tripId, createdAt, isDeleted",
       syncLog: "&id, recordId, timestamp",
     });
   }

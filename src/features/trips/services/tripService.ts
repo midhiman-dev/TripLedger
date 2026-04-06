@@ -1,6 +1,7 @@
 import { tripLedgerDb, type TripRecord } from "../../../db/tripLedgerDb";
 import { createHlc } from "../../foundation/lib/hlc";
 import { syncMetaKeys } from "../../foundation/lib/syncStatus";
+import { createDefaultCategories, getTripCategories } from "../../categories/services/categoryService";
 import { parseTripBudget } from "../lib/tripDraft";
 
 export type CreateTripInput = {
@@ -36,10 +37,12 @@ export async function createTrip(input: CreateTripInput): Promise<TripRecord> {
     syncStatus: "pending",
     isDeleted: false,
   };
+  const categories = createDefaultCategories(tripId, timestamp);
 
   await tripLedgerDb.transaction(
     "rw",
     tripLedgerDb.trips,
+    tripLedgerDb.categories,
     tripLedgerDb.syncLog,
     tripLedgerDb.appMeta,
     async () => {
@@ -48,6 +51,7 @@ export async function createTrip(input: CreateTripInput): Promise<TripRecord> {
       );
 
       await tripLedgerDb.trips.put(trip);
+      await tripLedgerDb.categories.bulkPut(categories);
       await tripLedgerDb.syncLog.put({
         id: syncLogId,
         action: "create",
@@ -57,6 +61,7 @@ export async function createTrip(input: CreateTripInput): Promise<TripRecord> {
         details: JSON.stringify({
           entityType: "trip",
           fields: ["name", "startDate", "endDate", "totalBudget"],
+          seededCategoryCount: categories.length,
         }),
       });
       await tripLedgerDb.appMeta.bulkPut([
@@ -81,3 +86,5 @@ export async function getLatestActiveTrip(): Promise<TripRecord | null> {
 
   return activeTrips[0] ?? null;
 }
+
+export { getTripCategories };

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { TripRecord } from "../../../db/tripLedgerDb";
+import type { CategoryRecord, TripRecord } from "../../../db/tripLedgerDb";
 import type { SyncStatusViewModel } from "../../foundation/lib/syncStatus";
 import {
   validateTripDraft,
@@ -24,8 +24,14 @@ type CreateTripScreenProps = {
 
 type TripSummaryProps = {
   trip: TripRecord;
+  categories: CategoryRecord[];
+  categoryBudgetDrafts: Record<string, string>;
+  categoryErrors: Record<string, string | undefined>;
+  savingCategoryId: string | null;
   installAction: ReactNode;
   syncStatus: SyncStatusViewModel;
+  onCategoryBudgetChange: (categoryId: string, value: string) => void;
+  onCategoryBudgetBlur: (categoryId: string) => void;
 };
 
 function FieldError({ message }: { message?: string }) {
@@ -77,6 +83,10 @@ function FormField({
       <FieldError message={error} />
     </div>
   );
+}
+
+function formatCategoryBudgetInput(value: string) {
+  return value === "" ? "" : value;
 }
 
 export function CreateTripScreen({
@@ -239,7 +249,17 @@ export function CreateTripScreen({
   );
 }
 
-export function TripSummaryScreen({ trip, installAction, syncStatus }: TripSummaryProps) {
+export function TripSummaryScreen({
+  trip,
+  categories,
+  categoryBudgetDrafts,
+  categoryErrors,
+  savingCategoryId,
+  installAction,
+  syncStatus,
+  onCategoryBudgetChange,
+  onCategoryBudgetBlur,
+}: TripSummaryProps) {
   return (
     <>
       <header className="rounded-3xl bg-surface-container-low px-6 py-5">
@@ -290,6 +310,76 @@ export function TripSummaryScreen({ trip, installAction, syncStatus }: TripSumma
             <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-outline">Sync Status</p>
             <p className="text-sm leading-6 text-on-surface/80">{syncStatus.detail}</p>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl bg-surface-container-lowest p-6 shadow-ambient">
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">
+              Spending expectations
+            </p>
+            <h2 className="font-headline text-2xl font-extrabold tracking-tight text-primary">
+              Default Categories
+            </h2>
+          </div>
+          <div className="rounded-full bg-secondary-container/20 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary">
+            {categories.length} seeded
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {categories.map((category) => {
+            const hasError = Boolean(categoryErrors[category.id]);
+            return (
+              <div
+                className="rounded-3xl bg-surface-container-low p-5"
+                key={category.id}
+              >
+                <div className="flex items-start gap-4">
+                  <div
+                    className="flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-container-lowest"
+                    style={{ color: category.color }}
+                  >
+                    <span className="material-symbols-outlined text-3xl">{category.icon}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="font-headline text-xl font-bold text-primary">
+                          {category.name}
+                        </h3>
+                        <p className="mt-1 text-sm text-on-surface/70">
+                          Set the category budget now and adjust it later as the trip plan changes.
+                        </p>
+                      </div>
+                      {savingCategoryId === category.id ? (
+                        <span className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">
+                          Saving
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-4 flex items-center gap-3 rounded-2xl bg-surface-container-lowest px-4 py-3">
+                      <span className="font-headline text-lg font-bold text-primary">Rs</span>
+                      <input
+                        aria-label={`${category.name} Budget`}
+                        className={`w-full border-0 bg-transparent px-0 py-1 text-lg font-semibold text-on-surface placeholder:text-outline focus:ring-0 ${
+                          hasError ? "text-red-700" : ""
+                        }`}
+                        inputMode="decimal"
+                        onBlur={() => onCategoryBudgetBlur(category.id)}
+                        onChange={(event) => onCategoryBudgetChange(category.id, event.target.value)}
+                        placeholder="0"
+                        type="text"
+                        value={formatCategoryBudgetInput(categoryBudgetDrafts[category.id] ?? "")}
+                      />
+                    </div>
+                    <FieldError message={categoryErrors[category.id]} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 

@@ -9,8 +9,9 @@ import { getSyncStatusViewModel, readPersistedSyncStatus } from "../lib/syncStat
 import { useShellStore } from "../store/shellStore";
 import { CreateTripScreen, TripSummaryScreen } from "../../trips/components/TripSetupScreens";
 import { validateTripDraft } from "../../trips/lib/tripDraft";
-import { createTrip, getLatestActiveTrip } from "../../trips/services/tripService";
+import { createTrip, getLatestActiveTrip, getTripCategories } from "../../trips/services/tripService";
 import { useTripStore } from "../../trips/store/tripStore";
+import { updateCategoryBudget } from "../../categories/services/categoryService";
 
 function StatusPill({
   label,
@@ -120,6 +121,19 @@ function InstallCard({
   );
 }
 
+function validateCategoryBudget(rawBudget: string) {
+  if (!rawBudget.trim()) {
+    return undefined;
+  }
+
+  const parsed = Number.parseFloat(rawBudget);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return "Budget amount must be zero or greater";
+  }
+
+  return undefined;
+}
+
 export function AppShell() {
   const {
     appVersion,
@@ -136,6 +150,10 @@ export function AppShell() {
   } = useShellStore();
   const {
     activeTrip,
+    categories,
+    categoryBudgetDrafts,
+    categoryErrors,
+    savingCategoryId,
     draft,
     errors,
     touchedFields,
@@ -143,6 +161,11 @@ export function AppShell() {
     isSaving,
     saveError,
     setActiveTrip,
+    setCategories,
+    setCategoryBudgetDraft,
+    setCategoryError,
+    setSavingCategoryId,
+    updateCategory,
     setDraftField,
     setErrors,
     setHydrating,
@@ -188,23 +211,37 @@ export function AppShell() {
   useEffect(() => {
     let cancelled = false;
 
-    void readPersistedSyncStatus().then((status) => {
-      if (!cancelled) {
-        setPersistedSyncStatus(status);
-      }
-    });
+    async function hydrateApp() {
+      const [status, trip] = await Promise.all([
+        readPersistedSyncStatus(),
+        getLatestActiveTrip(),
+      ]);
 
-    void getLatestActiveTrip().then((trip) => {
+      if (cancelled) {
+        return;
+      }
+
+      setPersistedSyncStatus(status);
+      setActiveTrip(trip);
+
+      if (trip) {
+        const tripCategories = await getTripCategories(trip.id);
+        if (!cancelled) {
+          setCategories(tripCategories);
+        }
+      }
+
       if (!cancelled) {
-        setActiveTrip(trip);
         setHydrating(false);
       }
-    });
+    }
+
+    void hydrateApp();
 
     return () => {
       cancelled = true;
     };
-  }, [setActiveTrip, setHydrating, setPersistedSyncStatus]);
+  }, [setActiveTrip, setCategories, setHydrating, setPersistedSyncStatus]);
 
   function handleFieldChange(field: keyof typeof draft, value: string) {
     const nextDraft = {
@@ -243,13 +280,54 @@ export function AppShell() {
 
     try {
       const trip = await createTrip(draft);
+      const tripCategories = await getTripCategories(trip.id);
       setActiveTrip(trip);
+      setCategories(tripCategories);
       resetDraft();
       setPersistedSyncStatus(await readPersistedSyncStatus());
     } catch {
       setSaveError("Trip setup could not be saved locally. Please try again.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  function handleCategoryBudgetChange(categoryId: string, value: string) {
+    setCategoryBudgetDraft(categoryId, value);
+    setCategoryError(categoryId, validateCategoryBudget(value));
+  }
+
+  async function handleCategoryBudgetBlur(categoryId: string) {
+    const rawBudget = categoryBudgetDrafts[categoryId] ?? "";
+    const error = validateCategoryBudget(rawBudget);
+    setCategoryError(categoryId, error);
+
+    if (error) {
+      return;
+    }
+
+    const currentCategory = categories.find((category) => category.id === categoryId);
+    if (!currentCategory) {
+      return;
+    }
+
+    const normalizedBudget = rawBudget.trim() === "" ? 0 : Number.parseFloat(rawBudget);
+    if (normalizedBudget === currentCategory.budgetAmount) {
+      return;
+    }
+
+    setSavingCategoryId(categoryId);
+
+    try {
+      const updatedCategory = await updateCategoryBudget({
+        categoryId,
+        budgetAmount: rawBudget.trim() === "" ? "0" : rawBudget,
+      });
+      updateCategory(updatedCategory);
+      setPersistedSyncStatus(await readPersistedSyncStatus());
+    } catch {
+      setCategoryError(categoryId, "Category budget could not be saved locally.");
+      setSavingCategoryId(null);
     }
   }
 
@@ -285,7 +363,13 @@ export function AppShell() {
 
         {isHydrating ? null : activeTrip ? (
           <TripSummaryScreen
+            categories={categories}
+            categoryBudgetDrafts={categoryBudgetDrafts}
+            categoryErrors={categoryErrors}
             installAction={installAction}
+            onCategoryBudgetBlur={handleCategoryBudgetBlur}
+            onCategoryBudgetChange={handleCategoryBudgetChange}
+            savingCategoryId={savingCategoryId}
             syncStatus={syncStatus}
             trip={activeTrip}
           />

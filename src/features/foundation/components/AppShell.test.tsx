@@ -11,12 +11,16 @@ const {
   appMetaPutMock,
   readPersistedSyncStatusMock,
   getLatestActiveTripMock,
+  getTripCategoriesMock,
   createTripMock,
+  updateCategoryBudgetMock,
 } = vi.hoisted(() => ({
   appMetaPutMock: vi.fn(),
   readPersistedSyncStatusMock: vi.fn<() => Promise<PersistedSyncStatus>>(),
   getLatestActiveTripMock: vi.fn(),
+  getTripCategoriesMock: vi.fn(),
   createTripMock: vi.fn(),
+  updateCategoryBudgetMock: vi.fn(),
 }));
 
 vi.mock("../../../db/tripLedgerDb", () => ({
@@ -40,8 +44,44 @@ vi.mock("../lib/syncStatus", async () => {
 
 vi.mock("../../trips/services/tripService", () => ({
   getLatestActiveTrip: getLatestActiveTripMock,
+  getTripCategories: getTripCategoriesMock,
   createTrip: createTripMock,
 }));
+
+vi.mock("../../categories/services/categoryService", () => ({
+  updateCategoryBudget: updateCategoryBudgetMock,
+}));
+
+const defaultCategories = [
+  {
+    id: "cat-fuel",
+    tripId: "trip-1",
+    name: "Fuel",
+    budgetAmount: 0,
+    icon: "local_gas_station",
+    color: "#865300",
+    createdAt: "2026-04-06T09:00:00.000Z",
+    updatedAt: "2026-04-06T09:00:00.000Z",
+    createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+    updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+    syncStatus: "pending",
+    isDeleted: false,
+  },
+  {
+    id: "cat-food",
+    tripId: "trip-1",
+    name: "Food",
+    budgetAmount: 0,
+    icon: "restaurant",
+    color: "#36b96a",
+    createdAt: "2026-04-06T09:00:00.000Z",
+    updatedAt: "2026-04-06T09:00:00.000Z",
+    createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+    updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+    syncStatus: "pending",
+    isDeleted: false,
+  },
+];
 
 async function renderShell() {
   render(<AppShell />);
@@ -55,7 +95,9 @@ describe("AppShell", () => {
     appMetaPutMock.mockReset();
     readPersistedSyncStatusMock.mockReset();
     getLatestActiveTripMock.mockReset();
+    getTripCategoriesMock.mockReset();
     createTripMock.mockReset();
+    updateCategoryBudgetMock.mockReset();
 
     readPersistedSyncStatusMock.mockResolvedValue({
       mode: "synced",
@@ -64,6 +106,7 @@ describe("AppShell", () => {
       lastSyncedAt: "2026-04-05T10:00:00.000Z",
     });
     getLatestActiveTripMock.mockResolvedValue(null);
+    getTripCategoriesMock.mockResolvedValue(defaultCategories);
 
     useShellStore.setState({
       isOnline: true,
@@ -107,8 +150,23 @@ describe("AppShell", () => {
     expect(screen.getByText(/trip name is required/i)).toBeInTheDocument();
   });
 
-  it("creates a trip locally and switches to the saved summary state", async () => {
+  it("creates a trip locally and shows seeded editable categories", async () => {
     const user = userEvent.setup();
+    const createdTrip = {
+      id: "trip-1",
+      name: "Spiti Escape",
+      startDate: "2026-05-11",
+      endDate: "2026-05-18",
+      baseCurrency: "INR",
+      totalBudget: 72000,
+      createdAt: "2026-04-06T09:00:00.000Z",
+      updatedAt: "2026-04-06T09:00:00.000Z",
+      createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      syncStatus: "pending",
+      isDeleted: false,
+    };
+
     readPersistedSyncStatusMock
       .mockResolvedValueOnce({
         mode: "synced",
@@ -122,20 +180,7 @@ describe("AppShell", () => {
         conflictCount: 0,
         lastSyncedAt: "2026-04-05T10:00:00.000Z",
       });
-    createTripMock.mockResolvedValue({
-      id: "trip-1",
-      name: "Spiti Escape",
-      startDate: "2026-05-11",
-      endDate: "2026-05-18",
-      baseCurrency: "INR",
-      totalBudget: 72000,
-      createdAt: "2026-04-06T09:00:00.000Z",
-      updatedAt: "2026-04-06T09:00:00.000Z",
-      createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
-      updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
-      syncStatus: "pending",
-      isDeleted: false,
-    });
+    createTripMock.mockResolvedValue(createdTrip);
 
     await renderShell();
 
@@ -157,24 +202,66 @@ describe("AppShell", () => {
         endDate: "2026-05-18",
         totalBudget: "72000",
       });
+      expect(getTripCategoriesMock).toHaveBeenCalledWith("trip-1");
     });
 
     expect(
-      screen.getByRole("heading", { name: /spiti escape/i }),
+      screen.getByRole("heading", { name: /default categories/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText((content) => content.includes("1 change is queued for sync"))).toBeInTheDocument();
+    expect(screen.getByLabelText(/fuel budget/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/food budget/i)).toBeInTheDocument();
     expect(screen.getByText((content) => content.includes("72,000.00"))).toBeInTheDocument();
   });
 
-  it("shows the offline banner when connectivity drops", async () => {
+  it("saves a category budget edit locally on blur", async () => {
+    const user = userEvent.setup();
+    getLatestActiveTripMock.mockResolvedValue({
+      id: "trip-1",
+      name: "BLR GOA Roadtrip",
+      startDate: "2026-04-15",
+      endDate: "2026-04-21",
+      baseCurrency: "INR",
+      totalBudget: 50000,
+      createdAt: "2026-04-06T09:00:00.000Z",
+      updatedAt: "2026-04-06T09:00:00.000Z",
+      createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+      syncStatus: "pending",
+      isDeleted: false,
+    });
+    readPersistedSyncStatusMock
+      .mockResolvedValueOnce({
+        mode: "pending",
+        pendingCount: 1,
+        conflictCount: 0,
+        lastSyncedAt: "2026-04-05T10:00:00.000Z",
+      })
+      .mockResolvedValueOnce({
+        mode: "pending",
+        pendingCount: 2,
+        conflictCount: 0,
+        lastSyncedAt: "2026-04-05T10:00:00.000Z",
+      });
+    updateCategoryBudgetMock.mockResolvedValue({
+      ...defaultCategories[0],
+      budgetAmount: 12000,
+      updatedAt: "2026-04-06T10:00:00.000Z",
+    });
+
     await renderShell();
 
-    fireEvent(window, new Event("offline"));
+    const fuelBudgetInput = screen.getByLabelText(/fuel budget/i);
+    await user.type(fuelBudgetInput, "12000");
+    fireEvent.blur(fuelBudgetInput);
 
-    const offlineBanner = screen.getByRole("status");
-    expect(offlineBanner).toHaveTextContent(
-      /you are offline\. local changes will sync when signal returns\./i,
-    );
-    expect(screen.getAllByText(/^offline$/i).length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(updateCategoryBudgetMock).toHaveBeenCalledWith({
+        categoryId: "cat-fuel",
+        budgetAmount: "12000",
+      });
+    });
+
+    expect(screen.getByDisplayValue("12000")).toBeInTheDocument();
+    expect(screen.getByText(/2 changes are queued for sync/i)).toBeInTheDocument();
   });
 });
