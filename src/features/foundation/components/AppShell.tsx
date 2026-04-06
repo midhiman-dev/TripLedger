@@ -149,7 +149,7 @@ function InstallCard({
   );
 }
 
-function RecentExpensesSection({
+function ExpenseHistorySection({
   expenses,
   categories,
   onEditExpense,
@@ -162,8 +162,15 @@ function RecentExpensesSection({
     () => new Map(categories.map((category) => [category.id, category])),
     [categories],
   );
-  const recentExpenses = useMemo(() => expenses.slice(0, 4), [expenses]);
-  const newestExpenseId = recentExpenses[0]?.id ?? null;
+  const sortedExpenses = useMemo(
+    () => [...expenses].sort((left, right) => right.loggedAt.localeCompare(left.loggedAt)),
+    [expenses],
+  );
+  const newestExpenseId = sortedExpenses[0]?.id ?? null;
+  const totalLoggedAmount = useMemo(
+    () => sortedExpenses.reduce((sum, expense) => sum + expense.amount, 0),
+    [sortedExpenses],
+  );
 
   function formatAmount(amount: number, currency: string) {
     return new Intl.NumberFormat("en-IN", {
@@ -173,113 +180,164 @@ function RecentExpensesSection({
     }).format(amount);
   }
 
-  function formatLoggedAt(loggedAt: string) {
+  function formatDateLabel(loggedAt: string) {
     return new Intl.DateTimeFormat("en-IN", {
       day: "numeric",
       month: "short",
+    }).format(new Date(loggedAt));
+  }
+
+  function formatTimeLabel(loggedAt: string) {
+    return new Intl.DateTimeFormat("en-IN", {
       hour: "numeric",
       minute: "2-digit",
     }).format(new Date(loggedAt));
   }
+
+  const groupedExpenses = useMemo(() => {
+    const groups: Array<{ label: string; items: ExpenseRecord[] }> = [];
+    const byDate = new Map<string, ExpenseRecord[]>();
+
+    sortedExpenses.forEach((expense) => {
+      const key = expense.loggedAt.slice(0, 10);
+      const existing = byDate.get(key);
+      if (existing) {
+        existing.push(expense);
+      } else {
+        byDate.set(key, [expense]);
+      }
+    });
+
+    byDate.forEach((items, key) => {
+      groups.push({
+        label: formatDateLabel(`${key}T00:00:00.000Z`),
+        items,
+      });
+    });
+
+    return groups;
+  }, [sortedExpenses]);
 
   return (
     <section className="rounded-3xl bg-surface-container-lowest p-6 shadow-ambient">
       <div className="mb-4 flex items-end justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">
-            Local-first logging
+            Adventure tracking
           </p>
           <h2 className="font-headline text-2xl font-extrabold tracking-tight text-primary">
-            Recent Activity
+            Expense History
           </h2>
         </div>
-        <div className="rounded-full bg-secondary-container/20 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-secondary">
-          {expenses.length} total
+        <div className="rounded-2xl bg-surface-container-low px-4 py-3 text-right">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-outline">
+            Total Logged
+          </p>
+          <p className="mt-1 font-headline text-lg font-extrabold text-primary">{formatAmount(totalLoggedAmount, sortedExpenses[0]?.currency ?? "INR")}</p>
         </div>
       </div>
 
-      {recentExpenses.length === 0 ? (
+      {sortedExpenses.length === 0 ? (
         <div className="rounded-3xl bg-surface-container-low p-5 text-sm leading-6 text-on-surface/75">
           No expenses logged yet. Use Quick Add to capture the moment before it slips.
         </div>
       ) : (
-        <div className="space-y-4">
-          {recentExpenses.map((expense) => {
-            const category = categoryMap.get(expense.categoryId);
-            const isPending = expense.syncStatus === "pending";
-            const isNewestPending = isPending && expense.id === newestExpenseId;
-            const expenseTitle = expense.description || category?.name || "Expense";
-            return (
-              <div
-                className={isNewestPending
-                  ? "rounded-3xl border-l-4 border-secondary bg-surface-container-lowest p-5 shadow-sm"
-                  : "rounded-3xl bg-surface-container-low p-5"
-                }
-                data-testid="recent-expense-card"
-                key={expense.id}
-              >
-                <div className="flex items-start gap-4">
-                  <div className={isNewestPending
+        <div className="space-y-6">
+          {groupedExpenses.map((group) => (
+            <div className="space-y-4" key={group.label}>
+              <h3 className="font-headline text-lg font-bold text-outline">{group.label}</h3>
+              {group.items.map((expense) => {
+                const category = categoryMap.get(expense.categoryId);
+                const isPending = expense.syncStatus === "pending";
+                const isConflict = expense.syncStatus === "conflict";
+                const isNewestPending = isPending && expense.id === newestExpenseId;
+                const expenseTitle = expense.description || category?.name || "Expense";
+                const cardClassName = isConflict
+                  ? "rounded-3xl border-l-4 border-error bg-white p-5 shadow-ambient"
+                  : isNewestPending
+                    ? "rounded-3xl border-l-4 border-secondary bg-surface-container-lowest p-5 shadow-sm"
+                    : "rounded-3xl bg-surface-container-low p-5";
+                const iconShellClassName = isConflict
+                  ? "flex h-14 w-14 items-center justify-center rounded-2xl bg-error-container text-error"
+                  : isNewestPending
                     ? "flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary-container/10 text-secondary"
-                    : "flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-container-lowest text-primary"
-                  }>
-                    <span className="material-symbols-outlined text-3xl">
-                      {category?.icon ?? "payments"}
-                    </span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="font-headline text-xl font-bold text-primary">
-                          {expenseTitle}
-                        </h3>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-on-surface/70">
-                          <span>{formatLoggedAt(expense.loggedAt)}</span>
-                          <span className="h-1 w-1 rounded-full bg-outline-variant"></span>
-                          {isPending ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.18em] text-secondary">
-                              <span className="material-symbols-outlined animate-sync-pulse text-[12px]">sync</span>
-                              Local Pending
-                            </span>
-                          ) : (
-                            <span className="text-xs font-semibold text-on-surface/60">Synced</span>
-                          )}
-                          {expense.location ? (
-                            <>
+                    : "flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-container-lowest text-primary";
+
+                return (
+                  <div
+                    className={cardClassName}
+                    data-testid="expense-history-card"
+                    key={expense.id}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={iconShellClassName}>
+                        <span className="material-symbols-outlined text-3xl">
+                          {category?.icon ?? "payments"}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <h3 className="font-headline text-xl font-bold text-primary">
+                              {expenseTitle}
+                            </h3>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-on-surface/70">
+                              {isConflict ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.18em] text-error">
+                                  <span className="material-symbols-outlined text-[12px]">warning</span>
+                                  Conflict Detected
+                                </span>
+                              ) : isPending ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.18em] text-secondary">
+                                  <span className="material-symbols-outlined animate-sync-pulse text-[12px]">sync</span>
+                                  Pending Sync
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#005228]">
+                                  <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                                  Synced
+                                </span>
+                              )}
                               <span className="h-1 w-1 rounded-full bg-outline-variant"></span>
-                              <span>{expense.location}</span>
-                            </>
-                          ) : null}
+                              <span>{formatTimeLabel(expense.loggedAt)}</span>
+                              {expense.location ? (
+                                <>
+                                  <span className="h-1 w-1 rounded-full bg-outline-variant"></span>
+                                  <span>{expense.location}</span>
+                                </>
+                              ) : null}
+                            </div>
+                            <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-on-surface/55">
+                              {formatExpenseLogger(expense)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className={isPending ? "font-headline text-lg font-bold text-secondary" : isConflict ? "font-headline text-lg font-bold text-error" : "font-headline text-lg font-bold text-primary"}>
+                              {formatAmount(expense.amount, expense.currency)}
+                            </p>
+                            <p className="mt-1 text-xs font-medium text-on-surface/65">
+                              Paid by {expense.paidBy || "You"}
+                            </p>
+                          </div>
                         </div>
-                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-on-surface/55">
-                          {formatExpenseLogger(expense)}
-                        </p>
+                        <div className="mt-4 flex justify-end">
+                          <button
+                            aria-label={`Edit ${expenseTitle}`}
+                            className="inline-flex min-h-10 items-center gap-2 rounded-full bg-surface-container-highest px-4 py-2 text-sm font-semibold text-primary transition hover:brightness-105"
+                            onClick={() => onEditExpense(expense)}
+                            type="button"
+                          >
+                            <span className="material-symbols-outlined text-base">edit</span>
+                            Edit
+                          </button>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className={isPending ? "font-headline text-lg font-bold text-secondary" : "font-headline text-lg font-bold text-primary"}>
-                          {formatAmount(expense.amount, expense.currency)}
-                        </p>
-                        <p className="mt-1 text-xs font-medium text-on-surface/65">
-                          Paid by {expense.paidBy || "You"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        aria-label={`Edit ${expenseTitle}`}
-                        className="inline-flex min-h-10 items-center gap-2 rounded-full bg-surface-container-highest px-4 py-2 text-sm font-semibold text-primary transition hover:brightness-105"
-                        onClick={() => onEditExpense(expense)}
-                        type="button"
-                      >
-                        <span className="material-symbols-outlined text-base">edit</span>
-                        Edit
-                      </button>
                     </div>
                   </div>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          ))}
         </div>
       )}
     </section>
@@ -807,7 +865,7 @@ export function AppShell() {
                 syncStatus={syncStatus}
                 trip={activeTrip}
               />
-              <RecentExpensesSection
+              <ExpenseHistorySection
                 categories={categories}
                 expenses={expenses}
                 onEditExpense={(expense) => {

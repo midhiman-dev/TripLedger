@@ -374,7 +374,7 @@ describe("AppShell", () => {
     expect(joinTripByCodeMock).not.toHaveBeenCalled();
   });
 
-  it("shows the new expense immediately at the top of recent activity with a local pending state", async () => {
+  it("shows the new expense immediately at the top of expense history with a local pending state", async () => {
     const user = userEvent.setup();
     getLatestActiveTripMock.mockResolvedValue(activeTrip);
     getTripCategoriesMock.mockResolvedValue(hydratedCategories);
@@ -458,15 +458,133 @@ describe("AppShell", () => {
       );
     });
 
-    const recentExpenseCards = screen.getAllByTestId("recent-expense-card");
-    expect(recentExpenseCards[0]).toHaveTextContent(/fuel stop/i);
-    expect(recentExpenseCards[0]).toHaveTextContent(/local pending/i);
-    expect(recentExpenseCards[0]).toHaveTextContent(/logged on this device/i);
-    expect(recentExpenseCards[1]).toHaveTextContent(/older fuel stop/i);
+    const historyExpenseCards = screen.getAllByTestId("expense-history-card");
+    expect(historyExpenseCards[0]).toHaveTextContent(/fuel stop/i);
+    expect(historyExpenseCards[0]).toHaveTextContent(/pending sync/i);
+    expect(historyExpenseCards[0]).toHaveTextContent(/logged on this device/i);
+    expect(historyExpenseCards[1]).toHaveTextContent(/older fuel stop/i);
     expect(screen.getByLabelText(/total spent/i)).toHaveTextContent("2,150");
     expect(screen.getByLabelText(/remaining amount/i)).toHaveTextContent("47,850.00");
     expect(screen.getByLabelText(/overall trip progress/i)).toHaveTextContent("4%");
     expect(screen.getByText(/expense added locally/i)).toBeInTheDocument();
+  });
+
+  it("renders the full expense history in reverse chronological order", async () => {
+    getLatestActiveTripMock.mockResolvedValue(activeTrip);
+    getTripCategoriesMock.mockResolvedValue(hydratedCategories);
+    getTripExpensesMock.mockResolvedValue([
+      {
+        id: "expense-1",
+        tripId: "trip-join",
+        categoryId: "cat-fuel",
+        amount: 300,
+        currency: "INR",
+        description: "Oldest toll",
+        location: "Mandi",
+        paidBy: "You",
+        loggedAt: "2026-04-04T07:00:00.000Z",
+        deviceId: "device-local",
+        createdAt: "2026-04-04T07:00:00.000Z",
+        updatedAt: "2026-04-04T07:00:00.000Z",
+        createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        syncStatus: "synced",
+        conflictData: null,
+        isDeleted: false,
+      },
+      {
+        id: "expense-2",
+        tripId: "trip-join",
+        categoryId: "cat-fuel",
+        amount: 500,
+        currency: "INR",
+        description: "Middle fuel stop",
+        location: "Kullu",
+        paidBy: "You",
+        loggedAt: "2026-04-05T07:00:00.000Z",
+        deviceId: "device-local",
+        createdAt: "2026-04-05T07:00:00.000Z",
+        updatedAt: "2026-04-05T07:00:00.000Z",
+        createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        syncStatus: "pending",
+        conflictData: null,
+        isDeleted: false,
+      },
+      {
+        id: "expense-3",
+        tripId: "trip-join",
+        categoryId: "cat-fuel",
+        amount: 900,
+        currency: "INR",
+        description: "Newest fuel stop",
+        location: "Manali",
+        paidBy: "You",
+        loggedAt: "2026-04-06T07:00:00.000Z",
+        deviceId: "device-local",
+        createdAt: "2026-04-06T07:00:00.000Z",
+        updatedAt: "2026-04-06T07:00:00.000Z",
+        createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        syncStatus: "synced",
+        conflictData: null,
+        isDeleted: false,
+      },
+      {
+        id: "expense-4",
+        tripId: "trip-join",
+        categoryId: "cat-fuel",
+        amount: 1200,
+        currency: "INR",
+        description: "Conflict hotel",
+        location: "Rohtang",
+        paidBy: "Riya",
+        loggedAt: "2026-04-06T06:00:00.000Z",
+        deviceId: "device-remote-42",
+        createdAt: "2026-04-06T06:00:00.000Z",
+        updatedAt: "2026-04-06T06:00:00.000Z",
+        createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-remote-42" },
+        updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-remote-42" },
+        syncStatus: "conflict",
+        conflictData: "{}",
+        isDeleted: false,
+      },
+      {
+        id: "expense-5",
+        tripId: "trip-join",
+        categoryId: "cat-fuel",
+        amount: 750,
+        currency: "INR",
+        description: "Fourth stop",
+        location: "Bilaspur",
+        paidBy: "You",
+        loggedAt: "2026-04-05T06:00:00.000Z",
+        deviceId: "device-local",
+        createdAt: "2026-04-05T06:00:00.000Z",
+        updatedAt: "2026-04-05T06:00:00.000Z",
+        createdAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        updatedAtHlc: { wallClock: 1, logical: 0, nodeId: "device-local" },
+        syncStatus: "synced",
+        conflictData: null,
+        isDeleted: false,
+      },
+    ]);
+
+    await renderShell();
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /expense history/i })).toBeInTheDocument();
+    });
+
+    const historyExpenseCards = screen.getAllByTestId("expense-history-card");
+    expect(historyExpenseCards).toHaveLength(5);
+    expect(historyExpenseCards[0]).toHaveTextContent(/newest fuel stop/i);
+    expect(historyExpenseCards[1]).toHaveTextContent(/conflict hotel/i);
+    expect(historyExpenseCards[1]).toHaveTextContent(/conflict detected/i);
+    expect(historyExpenseCards[2]).toHaveTextContent(/middle fuel stop/i);
+    expect(historyExpenseCards[2]).toHaveTextContent(/pending sync/i);
+    expect(historyExpenseCards[3]).toHaveTextContent(/fourth stop/i);
+    expect(historyExpenseCards[4]).toHaveTextContent(/oldest toll/i);
   });
 
   it("shows traveller attribution when a named payer logged the expense", async () => {
@@ -503,7 +621,7 @@ describe("AppShell", () => {
     expect(screen.getByText(/logged by riya/i)).toBeInTheDocument();
   });
 
-  it("prefills an expense for editing and updates recent activity immediately after save", async () => {
+  it("prefills an expense for editing and updates expense history immediately after save", async () => {
     const user = userEvent.setup();
     getLatestActiveTripMock.mockResolvedValue(activeTrip);
     getTripCategoriesMock.mockResolvedValue(hydratedCategories);
@@ -594,11 +712,11 @@ describe("AppShell", () => {
       });
     });
 
-    const recentExpenseCards = screen.getAllByTestId("recent-expense-card");
-    expect(recentExpenseCards[0]).toHaveTextContent(/dinner corrected/i);
-    expect(recentExpenseCards[0]).toHaveTextContent(/old manali/i);
-    expect(recentExpenseCards[0]).toHaveTextContent(/local pending/i);
-    expect(recentExpenseCards[0]).toHaveTextContent(/logged by riya/i);
+    const historyExpenseCards = screen.getAllByTestId("expense-history-card");
+    expect(historyExpenseCards[0]).toHaveTextContent(/dinner corrected/i);
+    expect(historyExpenseCards[0]).toHaveTextContent(/old manali/i);
+    expect(historyExpenseCards[0]).toHaveTextContent(/pending sync/i);
+    expect(historyExpenseCards[0]).toHaveTextContent(/logged by riya/i);
     expect(screen.getByText(/expense updated locally/i)).toBeInTheDocument();
   });
 
