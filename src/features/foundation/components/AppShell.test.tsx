@@ -340,6 +340,10 @@ describe("AppShell", () => {
       expect(screen.getByRole("heading", { name: /himalayan mission/i })).toBeInTheDocument();
     });
 
+    expect(screen.getByLabelText(/total spent/i)).toHaveTextContent("900");
+    expect(screen.getByLabelText(/remaining amount/i)).toHaveTextContent("49,100.00");
+    expect(screen.getByLabelText(/overall trip progress/i)).toHaveTextContent("2%");
+
     await user.click(screen.getByRole("button", { name: /quick add expense/i }));
     await user.click(screen.getByRole("button", { name: /local_gas_station fuel/i }));
     await user.type(screen.getByLabelText(/expense amount/i), "1250");
@@ -361,6 +365,9 @@ describe("AppShell", () => {
     expect(recentExpenseCards[0]).toHaveTextContent(/local pending/i);
     expect(recentExpenseCards[0]).toHaveTextContent(/logged on this device/i);
     expect(recentExpenseCards[1]).toHaveTextContent(/older fuel stop/i);
+    expect(screen.getByLabelText(/total spent/i)).toHaveTextContent("2,150");
+    expect(screen.getByLabelText(/remaining amount/i)).toHaveTextContent("47,850.00");
+    expect(screen.getByLabelText(/overall trip progress/i)).toHaveTextContent("4%");
     expect(screen.getByText(/expense added locally/i)).toBeInTheDocument();
   });
 

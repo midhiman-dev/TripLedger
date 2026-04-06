@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
-import type { CategoryRecord, TripRecord } from "../../../db/tripLedgerDb";
+import type { CategoryRecord, ExpenseRecord, TripRecord } from "../../../db/tripLedgerDb";
+import { buildDashboardSummary } from "../../dashboard/lib/dashboardSummary";
 import type { SyncStatusViewModel } from "../../foundation/lib/syncStatus";
 import { buildTripShareText, formatTripCode } from "../lib/tripCode";
 import {
@@ -41,6 +42,7 @@ type JoinTripScreenProps = {
 type TripSummaryProps = {
   trip: TripRecord;
   categories: CategoryRecord[];
+  expenses: ExpenseRecord[];
   categoryBudgetDrafts: Record<string, string>;
   categoryErrors: Record<string, string | undefined>;
   savingCategoryId: string | null;
@@ -78,6 +80,14 @@ function formatTripBudget(totalBudget: number, currency: string) {
     style: "currency",
     currency,
     maximumFractionDigits: 2,
+  }).format(totalBudget);
+}
+
+function formatCompactTripBudget(totalBudget: number, currency: string) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
   }).format(totalBudget);
 }
 
@@ -405,6 +415,7 @@ export function JoinTripScreen({
 export function TripSummaryScreen({
   trip,
   categories,
+  expenses,
   categoryBudgetDrafts,
   categoryErrors,
   savingCategoryId,
@@ -414,6 +425,20 @@ export function TripSummaryScreen({
   onCategoryBudgetBlur,
 }: TripSummaryProps) {
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
+  const dashboardSummary = useMemo(
+    () => buildDashboardSummary(trip, categories, expenses),
+    [trip, categories, expenses],
+  );
+  const progressToneClasses = {
+    healthy: "bg-[#7efba4]/20 text-[#005228]",
+    watch: "bg-secondary-container/20 text-secondary",
+    critical: "bg-red-100 text-red-700",
+  };
+  const progressBarClasses = {
+    healthy: "bg-[#61de8a]",
+    watch: "bg-secondary-container",
+    critical: "bg-red-500",
+  };
 
   async function handleShareCode() {
     const shareText = buildTripShareText(trip.name, trip.tripCode);
@@ -458,16 +483,70 @@ export function TripSummaryScreen({
       </header>
 
       <section className="overflow-hidden rounded-3xl bg-hero-gradient p-6 text-on-primary shadow-ambient">
-        <div className="space-y-3">
-          <p className="font-body text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
-            Saved on this device
-          </p>
-          <p className="font-headline text-3xl font-bold tracking-tight">
-            The group now has a starting budget before the first expense is logged.
-          </p>
-          <p className="max-w-sm text-sm leading-6 text-white/80">
-            Local writes land first and sync can catch up later without blocking trip setup.
-          </p>
+        <div className="relative space-y-6">
+          <div className="absolute right-[-3rem] top-[-4rem] h-40 w-40 rounded-full bg-white/10 blur-3xl"></div>
+          <div className="relative z-10 flex items-start justify-between gap-4">
+            <div aria-label="Total spent">
+              <p className="font-body text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
+                Total Trip Spent
+              </p>
+              <p className="mt-3 font-headline text-5xl font-extrabold tracking-tight">
+                {formatCompactTripBudget(dashboardSummary.totalSpent, trip.baseCurrency)}
+              </p>
+            </div>
+            <div
+              className={`rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                progressToneClasses[dashboardSummary.healthTone]
+              }`}
+            >
+              {dashboardSummary.healthLabel}
+            </div>
+          </div>
+          <div className="relative z-10 grid gap-4 sm:grid-cols-2">
+            <div aria-label="Total budget" className="rounded-3xl bg-white/10 p-4 backdrop-blur-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/70">
+                Total Budget
+              </p>
+              <p className="mt-2 font-headline text-2xl font-bold">
+                {formatTripBudget(dashboardSummary.totalBudget, trip.baseCurrency)}
+              </p>
+            </div>
+            <div aria-label="Remaining amount" className="rounded-3xl bg-white/10 p-4 backdrop-blur-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/70">
+                Remaining
+              </p>
+              <p className="mt-2 font-headline text-2xl font-bold">
+                {formatTripBudget(Math.abs(dashboardSummary.remainingAmount), trip.baseCurrency)}
+              </p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/70">
+                {dashboardSummary.remainingAmount >= 0 ? "Still available" : "Over budget"}
+              </p>
+            </div>
+          </div>
+          <div
+            aria-label="Overall trip progress"
+            className="relative z-10 rounded-3xl bg-white/10 p-4 backdrop-blur-sm"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/70">
+                  Overall Trip Progress
+                </p>
+                <p className="mt-2 font-headline text-2xl font-bold">
+                  {dashboardSummary.progressPercent}%
+                </p>
+              </div>
+              <p className="max-w-[11rem] text-right text-sm leading-6 text-white/80">
+                {dashboardSummary.budgetedCategoryCount} of {dashboardSummary.totalCategoryCount} category budgets set
+              </p>
+            </div>
+            <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/20">
+              <div
+                className={`h-full rounded-full ${progressBarClasses[dashboardSummary.healthTone]}`}
+                style={{ width: `${dashboardSummary.progressPercent}%` }}
+              ></div>
+            </div>
+          </div>
         </div>
       </section>
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { tripLedgerDb, type CategoryRecord, type ExpenseRecord } from "../../../db/tripLedgerDb";
 import {
@@ -158,8 +158,11 @@ function RecentExpensesSection({
   categories: CategoryRecord[];
   onEditExpense: (expense: ExpenseRecord) => void;
 }) {
-  const categoryMap = new Map(categories.map((category) => [category.id, category]));
-  const recentExpenses = expenses.slice(0, 4);
+  const categoryMap = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories],
+  );
+  const recentExpenses = useMemo(() => expenses.slice(0, 4), [expenses]);
   const newestExpenseId = recentExpenses[0]?.id ?? null;
 
   function formatAmount(amount: number, currency: string) {
@@ -796,6 +799,7 @@ export function AppShell() {
                 categories={categories}
                 categoryBudgetDrafts={categoryBudgetDrafts}
                 categoryErrors={categoryErrors}
+                expenses={expenses}
                 installAction={installAction}
                 onCategoryBudgetBlur={handleCategoryBudgetBlur}
                 onCategoryBudgetChange={handleCategoryBudgetChange}
